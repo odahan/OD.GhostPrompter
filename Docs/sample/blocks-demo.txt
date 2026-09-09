@@ -1,0 +1,132 @@
+[Ouverture]
+// Marquez une pause pendant la préparation de l'application d'enregistrement.
+
+Bienvenue dans cette démonstration du mode Blocs de GhostPrompter. Ce script est
+volontairement assez long pour exercer la création automatique de pages, la navigation
+suivante et précédente, les titres, les commentaires et le passage d'un bloc logique au
+suivant. Lisez-le à un rythme naturel tout en manipulant une autre application. Le
+prompteur doit rester visible pour le présentateur sans retirer le focus à l'application
+présentée.
+
+Le premier point à observer est qu'un bloc est une section logique, et pas forcément une
+seule page visuelle. GhostPrompter découpe un bloc long en autant de pages lisibles que
+l'exigent la police, la taille de fenêtre, le padding et le DPI. Le script n'est jamais
+réécrit. Si ce paragraphe atteint le bas du prompteur, utilisez la commande globale
+Suivant et vérifiez que la page suivante commence sur une limite de ligne naturelle.
+Utilisez ensuite Précédent et contrôlez qu'aucune phrase, lettre accentuée ou ponctuation
+ne disparaît dans un sens ou dans l'autre.
+
+// Vérifiez que la saisie fonctionne toujours dans le programme sous-jacent après un raccourci.
+
+Pour cet exercice, réduisez la fenêtre du prompteur et augmentez la taille de police. Le
+même contenu logique doit alors demander davantage de pages. Restaurez une fenêtre plus
+grande, puis recommencez la navigation. Un nombre de pages différent est normal ; du
+texte sauté ne l'est pas. C'est aussi le bon moment pour vérifier que l'indicateur nomme
+le bloc courant et, lorsque nécessaire, la page de ce bloc. Cet indicateur aide le
+présentateur ; il ne fait pas partie du script importé.
+
+Les phrases suivantes ajoutent assez de matière continue pour provoquer plusieurs pages,
+même dans un grand prompteur. Le texte doit rester confortable à lire : la pagination ne
+doit jamais réduire silencieusement la police demandée. Le présentateur peut choisir une
+taille de seize à soixante-douze DIP, et la mise en page doit conserver le passage courant
+aussi fidèlement que possible. Un court titre répété sur une page de continuation est
+acceptable s'il facilite l'orientation, mais le corps du script doit garder son ordre.
+
+Lorsqu'un paragraphe est trop long pour l'espace disponible, la mise en page peut le
+couper entre deux lignes rendues. Elle ne doit jamais couper un caractère Unicode en deux.
+Les identifiants et les URL très longs sans espace doivent revenir à la ligne ou rester
+accessibles au lieu de rendre une page entière inutilisable. Cette phrase contient des
+accents pour le contrôle : déjà, façade, cœur, naïve, Español, Ελληνικά et 日本語. Aucun de
+ces caractères ne doit être perdu au changement de page.
+
+---
+
+[Charger un script préparé]
+// Ouvrez un fichier source dans l'éditeur sous-jacent, puis revenez au prompteur.
+
+Le deuxième bloc commence après un séparateur explicite. Le séparateur n'est pas affiché
+au présentateur et ne doit pas être lu. Il marque une transition logique. En mode Blocs,
+la première page après la dernière page du bloc précédent est la première page de ce
+bloc. La commande Précédent effectue exactement le trajet inverse. Une démonstration est
+ainsi facile à répéter, car le récit est regroupé par intention plutôt que par format de
+page fixe.
+
+Ce bloc montre également la syntaxe de titre GhostPrompter. Le titre ci-dessus est rendu
+sans crochets et avec une emphase de titre. Un titre placé plus loin dans le bloc devient
+un intertitre, et non un nouveau bloc logique. Il reste un repère utile à l'écran.
+Désactivez Afficher les titres dans la fenêtre de configuration et vérifiez que le titre
+est masqué tandis que le texte, la pagination et les séparations restent valides.
+
+[Un intertitre dans le même bloc]
+
+Continuez avec assez de prose pour vérifier qu'un titre ne reste pas seul en bas d'une
+page lorsque la première ligne de son texte peut tenir avec lui. La mise en page doit
+préférer un groupe lisible. S'il n'y a pas assez de place, mieux vaut placer l'intertitre
+et sa ligne suivante sur la page suivante que laisser au présentateur un titre isolé.
+
+Pendant ce paragraphe, activez le mode Présentation. Le prompteur doit devenir verrouillé,
+rester au premier plan et ne pas s'activer lorsqu'on clique dessus. Si le click-through
+est activé, essayez un clic gauche, un double-clic, un clic droit, un glisser-déposer et
+la molette directement au-dessus du prompteur. Ces actions doivent atteindre
+l'application située dessous. Basculez le click-through avec le raccourci global, puis
+recommencez. La position de lecture ne doit pas changer.
+
+Utilisez maintenant la commande Afficher / Masquer. Le masquage met la lecture en pause,
+mais le mode Blocs n'avance jamais automatiquement. Quand le prompteur réapparaît, cette
+page précise doit être visible. Passez brièvement au mode Défilement puis revenez au mode
+Blocs. Le document reste chargé, mais le nouveau mode repart de son début et reste en
+pause. Ce comportement évite qu'un changement de mode déplace un présentateur à un autre
+endroit pendant une répétition.
+
+---
+
+[Un dernier bloc volontairement long]
+// Ce bloc doit couvrir plusieurs pages dans la fenêtre par défaut de 700 par 250 DIP.
+
+Le dernier bloc est intentionnellement long. Son but est de rendre la vérification manuelle
+des limites de page simple, sans dépendre d'une résolution d'écran particulière. Avancez
+jusqu'à la fin. La commande Suivant ne doit alors plus rien faire : le mode Blocs ne
+revient jamais de la dernière page à la première. Revenez jusqu'au début. La commande
+Précédent doit elle aussi s'arrêter sans boucler. Ces limites sont importantes en
+enregistrement, car un appui prolongé accidentel ne doit pas renvoyer le présentateur au
+début du script.
+
+Au début d'une répétition, placez le prompteur au-dessus d'un programme actif. Réglez sa
+largeur et sa hauteur en mode Configuration, puis verrouillez-le en mode Présentation.
+Vérifiez que la police, l'opacité du fond et l'opacité du texte restent indépendantes. Un
+fond transparent ne doit pas multiplier l'opacité du texte : des caractères blancs à
+soixante-quinze pour cent restent lisibles au-dessus du programme même avec un fond noir
+réglé à zéro pour cent. Restaurez un fond contrasté avant de continuer si le bureau rend
+la lecture difficile.
+
+Les commentaires sont volontairement conservés dans cet exemple : ce sont des rappels au
+présentateur. Un commentaire commence par deux slashs après des espaces de tête éventuels.
+Les slashs ne sont pas affichés dans le rendu attendu et le rappel est stylé différemment
+du texte prononcé. Les commentaires ne sont ni des instructions exécutables, ni des URL,
+ni des ressources distantes. Ils font seulement partie d'un script local chargé en lecture
+seule. Ils peuvent dire « ouvrir l'explorateur de solutions » ou « attendre le build »
+sans modifier l'application.
+
+// Vérifiez encore l'enregistrement après déplacement, redimensionnement, masquage et réaffichage.
+
+Utilisez maintenant les raccourcis globaux d'agrandissement et de réduction du texte.
+Chaque appui modifie la taille de deux DIP dans les limites autorisées. Vérifiez qu'une
+nouvelle mise en page est calculée et que le passage courant reste disponible. Une page de
+continuation peut changer de limite visuelle après reflow, mais le texte ne doit pas
+disparaître. Ceci compte particulièrement lorsqu'un écran passe d'une échelle DPI à une
+autre : les pixels physiques changent tandis que la spécification reste en pixels
+indépendants du périphérique.
+
+Terminez la démonstration en revenant à la première page avec le raccourci Restart. En
+mode Blocs, Restart signifie première page du document et reste en pause. Le fichier
+source reste inchangé ; GhostPrompter n'expose ni éditeur, ni action d'enregistrement, ni
+historique annuler/rétablir, ni invite de document modifié. C'est un prompteur de
+présentateur, pas un traitement de texte. Cette contrainte rend le flux d'enregistrement
+prévisible.
+
+[Fin]
+// Arrêtez l'enregistrement après avoir confirmé l'indicateur du dernier bloc.
+
+Voici la fin de l'exemple mode Blocs. Utilisez-le comme test manuel reproductible chaque
+fois que la mise en page, la pagination, les raccourcis ou le comportement de capture
+évoluent.

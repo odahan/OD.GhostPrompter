@@ -1,0 +1,132 @@
+[Avant de commencer]
+// Laissez le prompteur en pause pendant le démarrage de l'enregistrement d'écran.
+
+Bienvenue dans cette démonstration du mode Défilement de GhostPrompter. Ce script continu
+contient des titres, des séparateurs, des commentaires, des paragraphes courts et des
+explications plus longues afin d'évaluer le contrôleur de défilement dans des conditions
+d'enregistrement réalistes. Le texte doit commencer par sa première ligne visible à la
+hauteur de départ configurée, soit cinquante pour cent de la hauteur utile par défaut. La
+moitié basse de la fenêtre doit laisser de la place aux lignes suivantes, ce qui aide le
+présentateur à anticiper le rythme et la ponctuation.
+
+N'appuyez pas sur Lecture tant que l'enregistrement et l'application sous-jacente ne sont
+pas prêts. Démarrer la lecture ne doit ni activer le prompteur ni voler le focus clavier.
+Le raccourci global pilote GhostPrompter tandis que le développeur continue à saisir,
+cliquer ou présenter dans l'application qui possède le focus. Cet exemple est
+volontairement conséquent : à la vitesse par défaut de cinquante DIP par seconde, il doit
+laisser assez de temps pour augmenter et diminuer la vitesse, mettre en pause, masquer,
+afficher et redémarrer sans atteindre la fin immédiatement.
+
+// Vérifiez que la première ligne rendue est proche du repère visuel sélectionné.
+
+L'offset de défilement est mesuré en pixels indépendants du périphérique et non en images
+vidéo. Le mouvement doit donc rester fluide lorsque la fréquence de rendu varie. Le
+contrôleur avance selon la vitesse multipliée par le temps monotone écoulé. Il n'utilise
+pas un nombre fixe de pixels pour chaque rappel de rendu. Si l'ordinateur se met en veille,
+si la session est verrouillée ou si le rendu est interrompu longtemps, la lecture se met en
+pause au lieu de tenter un rattrapage par un saut trop grand et illisible.
+
+---
+
+[Régler le rythme de lecture]
+// Augmentez deux fois la vitesse, puis diminuez-la une fois avec les raccourcis globaux.
+
+La vitesse initiale est de cinquante DIP par seconde. La plage prise en charge va de dix à
+trois cents, avec un pas de dix. Augmenter la vitesse en mode Défilement doit prendre effet
+sans inverser le sens. La diminuer sous le minimum doit rester au minimum, et l'augmenter
+au-delà du maximum doit rester au maximum. Modifier la vitesse pendant une pause doit
+garder la lecture en pause. Ces détails semblent mineurs, mais ils permettent au
+présentateur de récupérer après une explication imprévue sans déplacer la souris ni
+perturber le programme enregistré.
+
+Observez le mince indicateur de progression en bas du prompteur. En mode Défilement, il
+représente le déplacement entre la position visuelle initiale et le point où la dernière
+ligne arrive sur ce même repère. Il ne prétend pas mesurer les mots prononcés. Un script
+court peut donc défiler, car ses lignes suivantes doivent avoir le temps d'atteindre le
+repère. À l'inverse, une absence de contenu visible signifie zéro pour cent et aucun
+mouvement lisible. Une ligne seule déjà au repère n'a pas de déplacement utile et est
+considérée terminée plutôt que de provoquer une division par zéro.
+
+[Un repère au milieu du script]
+
+Ce titre est un repère, pas un bloc distinct. Avec Afficher les titres activé, il apparaît
+en gras à sa position réelle dans le contenu continu. Désactivez Afficher les titres alors
+que le script est en pause. GhostPrompter doit rester en pause, choisir le contenu visible
+suivant comme repère de lecture lorsque nécessaire, recalculer la mise en page et garder
+la pause. Réactivez les titres et vérifiez que l'ordre visuel reste stable. Le fichier
+source n'a pas été édité ; seule sa présentation a changé.
+
+Le même principe de recalcul s'applique à la taille de police, aux dimensions de fenêtre,
+au DPI ou à la visibilité de la barre de progression. Dans chaque cas, le présentateur doit
+rester près du même passage textuel. L'offset exact en pixels peut légitimement changer,
+car une autre mise en page produit d'autres retours à la ligne. En revanche, il ne doit
+pas y avoir de saut silencieux au-dessus d'une phrase ni de reprise surprise. Après un
+reflow, l'application reste en pause pour laisser le temps d'inspecter la nouvelle position.
+
+---
+
+[Modifier le repère visuel]
+// Faites une pause, réglez Starting height à 60 pour cent, puis appuyez de nouveau sur Lecture.
+
+Starting height est un pourcentage de la hauteur utile, mesuré depuis le haut. Sa plage
+autorisée va de dix à quatre-vingts pour cent, par incréments d'interface de cinq points.
+Le régler à soixante pour cent abaisse le repère de lecture, laissant moins de place dessous
+mais davantage au-dessus. GhostPrompter doit placer la ligne de lecture courante au nouveau
+repère, rester en pause et employer le même repère pour décider que la dernière ligne a
+terminé son trajet. Ce réglage est une marge visuelle, pas du contenu importé ni un
+séparateur de bloc.
+
+Observez plus loin dans ce script le comportement de marge finale. La dernière ligne doit
+pouvoir progresser jusqu'au même repère de lecture. La lecture ne doit pas s'arrêter dès
+que le bas du texte devient visible au bord inférieur de la fenêtre. C'est pourquoi un
+script court de plusieurs lignes conserve un déplacement utile. La fin devient aussi
+claire pour le présentateur : la progression atteint cent pour cent seulement lorsque la
+dernière ligne utilisable est arrivée au point familier.
+
+Le prompteur peut rester transparent pendant cela. Essayez une opacité de fond noir à zéro
+et une opacité de texte à soixante-quinze. L'opacité du texte s'applique directement au
+corps, aux titres, aux commentaires et aux indicateurs. Elle est indépendante du fond. Le
+présentateur doit encore voir le programme sous les mots. Restaurez le contraste souhaité
+avant un enregistrement réel ; la lisibilité est plus importante qu'un prompteur presque
+invisible.
+
+---
+
+[Flux de travail de présentation]
+// Passez en mode Présentation et activez le click-through pour cette section.
+
+Pendant le défilement de cette section, interagissez avec le programme sous-jacent. Cliquez
+sur un bouton, sélectionnez une ligne de code source, faites défiler un document ou tapez
+une courte phrase. Le prompteur doit rester visiblement au premier plan sans devenir actif.
+Avec le click-through activé, toutes les interactions souris au-dessus du prompteur doivent
+être livrées comme s'il était absent. Lorsqu'il est désactivé, le prompteur ne doit toujours
+pas s'activer en présentation. Utilisez le raccourci global Masquer pour le faire disparaître
+; la lecture se met en pause. Réaffichez-le et vérifiez qu'il reste en pause sur le même
+passage.
+
+Testez maintenant Restart. Il replace la première ligne visible sur le repère de départ
+choisi et reste en pause. Lecture à la fin ne redémarre pas implicitement ; la commande
+Restart explicite évite les boucles accidentelles. Passez au mode Blocs si vous le souhaitez
+et constatez qu'il revient à la première page en pause. Revenez au mode Défilement : il
+repart au début tout en conservant le document déjà analysé, sans relire le fichier.
+
+Cet exemple contrôle aussi l'Unicode pendant un long défilement : résumé, Göteborg, Łódź,
+İstanbul, العربية, हिन्दी, 中文 et les emoji sont du contenu ordinaire. Le défilement ne doit
+pas les altérer. Les identifiants sans espaces tels que
+VeryLongIdentifierWithoutAnySpaces doivent revenir à la ligne ou rester accessibles, sans
+faire disparaître du contenu au-delà du bord droit.
+
+[Terminer]
+// Laissez la dernière ligne atteindre le repère ; ne vous arrêtez pas lorsqu'elle entre seulement dans la fenêtre.
+
+Le dernier paragraphe donne assez de matière au contrôleur pour finir naturellement.
+Observez la dernière ligne et l'indicateur de progression. À la fin, le défilement s'arrête,
+la position est conservée et la progression reste à cent pour cent. Essayez Lecture une
+fois encore : elle ne doit pas revenir au début. Utilisez Restart si une autre répétition
+est nécessaire. Du point de vue de GhostPrompter, le fichier reste en lecture seule ; il
+n'y a donc aucune invite d'enregistrement après ce test.
+
+Merci d'avoir effectué l'exemple mode Défilement. Ce fichier est adapté à la vérification
+de la hauteur de départ, des limites de vitesse, de la pause et reprise, du comportement de
+fin, des raccourcis globaux, des opacités visuelles, du click-through, de l'exclusion de
+capture et du rendu de texte long après de futures modifications.
