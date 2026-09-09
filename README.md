@@ -66,11 +66,22 @@ Source files and extracted plain text are each limited to 10 MB. The application
 
 ## Build and publish
 
+Use the included script to create the distributable executable:
+
+```powershell
+.\publish.ps1
+```
+
+It restores dependencies when necessary, then publishes the application as a self-contained,
+single-file Windows x64 executable at `bin\publish\GhostPrompter.exe`. When dependencies
+have already been restored, use `.\publish.ps1 -NoRestore` to skip the restore step.
+
+For manual build and test steps:
+
 ```powershell
 dotnet restore GhostPrompter.slnx --source 'C:\Program Files (x86)\Microsoft SDKs\NuGetPackages\'
 dotnet build GhostPrompter.slnx -m:1 --no-restore
 dotnet test GhostPrompter.slnx -m:1 --no-build --no-restore
-dotnet publish src/GhostPrompter/GhostPrompter.csproj -c Release -r win-x64 --self-contained true -m:1
 ```
 
 Release publishing produces a self-contained, single-file `GhostPrompter.exe` for Windows x64. WPF trimming is intentionally disabled.
