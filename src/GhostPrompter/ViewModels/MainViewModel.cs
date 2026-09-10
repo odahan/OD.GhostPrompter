@@ -35,6 +35,7 @@ public sealed partial class MainViewModel : ObservableObject
     public event EventHandler? ResetWindowPositionRequested;
     public event EventHandler? ShortcutSettingsRequested;
     public event EventHandler? TextEditorRequested;
+    public string ApplicationTitle => $"GhostPrompter © 2026 O.Dahan - V {GetType().Assembly.GetName().Version?.ToString(3) ?? "1.2.1"}";
     public bool CanEditText => _hasLoadedDocument;
     public string EditableText => _document.SourceText;
     public bool IsScrollRunning => _scroll.IsRunning;

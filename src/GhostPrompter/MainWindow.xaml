@@ -3,14 +3,14 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:GhostPrompter.Models"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
-        Title="GhostPrompter" Width="700" Height="680" MinWidth="560" MinHeight="500"
+        Title="{Binding ApplicationTitle}" Width="700" Height="680" MinWidth="560" MinHeight="500"
         WindowStyle="None" ResizeMode="CanResize" Background="{StaticResource SurfaceBrush}" Foreground="{StaticResource TextBrush}">
     <shell:WindowChrome.WindowChrome><shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="6" CornerRadius="0" GlassFrameThickness="0" UseAeroCaptionButtons="False" /></shell:WindowChrome.WindowChrome>
     <Border BorderBrush="{StaticResource AccentBrush}" BorderThickness="1" Background="{StaticResource SurfaceBrush}">
         <Grid>
             <Grid.RowDefinitions><RowDefinition Height="34" /><RowDefinition Height="*" /></Grid.RowDefinitions>
             <Grid Grid.Row="0" Background="{StaticResource SurfaceRaisedBrush}" MouseLeftButtonDown="OnTitleBarMouseLeftButtonDown">
-                <TextBlock Text="GhostPrompter — Configuration" VerticalAlignment="Center" Margin="14,0" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding ApplicationTitle, StringFormat={}{0} — Configuration}" VerticalAlignment="Center" Margin="14,0" FontWeight="SemiBold" />
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" shell:WindowChrome.IsHitTestVisibleInChrome="True">
                     <Button Style="{StaticResource CaptionButton}" Content="—" Click="OnMinimizeClick" ToolTip="Minimize" />
                     <Button Style="{StaticResource CloseCaptionButton}" Content="×" Click="OnCloseClick" ToolTip="Close" />
