@@ -3,8 +3,9 @@ namespace GhostPrompter.Services;
 /// <summary>Maintains time-independent scrolling state expressed in device-independent pixels.</summary>
 public sealed class ScrollController
 {
-    public const double MinimumSpeed = 10;
-    public const double MaximumSpeed = 300;
+    public const double MinimumSpeed = 2;
+    public const double MaximumSpeed = 150;
+    public const double SpeedStep = 2;
     public double Offset { get; private set; }
     public double Speed { get; private set; } = 50;
     public double MaximumOffset { get; private set; }
@@ -32,7 +33,7 @@ public sealed class ScrollController
     public void Play() { if (HasContent && Offset < MaximumOffset) IsRunning = true; }
     public void Pause() => IsRunning = false;
     public void Restart() { IsRunning = false; Offset = 0; }
-    public void SetSpeed(double speed) => Speed = Math.Clamp(Math.Round(speed / 10) * 10, MinimumSpeed, MaximumSpeed);
+    public void SetSpeed(double speed) => Speed = Math.Clamp(Math.Round(speed / SpeedStep) * SpeedStep, MinimumSpeed, MaximumSpeed);
     public void ChangeSpeed(double delta) => SetSpeed(Speed + delta);
     public void SetOffset(double offset) => Offset = Math.Clamp(offset, 0, MaximumOffset);
 }

@@ -1,10 +1,25 @@
 <Window x:Class="GhostPrompter.PrompterWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        WindowStyle="None" AllowsTransparency="True" Background="Transparent" Topmost="True" ShowInTaskbar="False" ShowActivated="False" Width="700" Height="250" ResizeMode="CanResizeWithGrip">
-    <Border Background="{Binding BackgroundBrush}" Padding="20"><Grid x:Name="ContentGrid" Background="Transparent" ClipToBounds="True" SizeChanged="OnContentSizeChanged" MouseLeftButtonDown="OnMouseLeftButtonDown">
-        <RichTextBox x:Name="ContentText" IsReadOnly="True" IsReadOnlyCaretVisible="False" IsHitTestVisible="False" BorderThickness="0" Background="Transparent" Foreground="White" FontFamily="Segoe UI" FontSize="{Binding FontSize}" Opacity="{Binding TextOpacity}" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Disabled" Padding="0"><RichTextBox.RenderTransform><TranslateTransform x:Name="ContentTransform" /></RichTextBox.RenderTransform></RichTextBox>
-        <ProgressBar Height="3" Maximum="1" Value="{Binding Progress}" VerticalAlignment="Bottom" Foreground="White" Background="#40000000" BorderThickness="0" Visibility="{Binding ShowProgress, Converter={StaticResource BooleanToVisibilityConverter}}" />
-        <TextBlock Text="{Binding ProgressText}" HorizontalAlignment="Right" VerticalAlignment="Bottom" Foreground="White" Opacity="{Binding TextOpacity}" Margin="0,0,6,6" Visibility="{Binding ShowProgress, Converter={StaticResource BooleanToVisibilityConverter}}" />
-    </Grid></Border>
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent" Topmost="True" ShowInTaskbar="False" ShowActivated="False" Width="700" Height="250" MinWidth="200" MinHeight="80" ResizeMode="CanResizeWithGrip">
+    <Border Background="{Binding BackgroundBrush}" Padding="20">
+        <Grid x:Name="ContentGrid" Background="Transparent" ClipToBounds="True" MouseLeftButtonDown="OnMouseLeftButtonDown">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <RichTextBox x:Name="ContentText" Grid.Row="0" IsReadOnly="True" IsReadOnlyCaretVisible="False" IsHitTestVisible="False"
+                         BorderThickness="0" Background="Transparent" Foreground="White" FontFamily="Segoe UI"
+                         FontSize="{Binding FontSize}" Opacity="{Binding TextOpacity}" VerticalScrollBarVisibility="Hidden"
+                         HorizontalScrollBarVisibility="Disabled" Padding="0" SizeChanged="OnContentSizeChanged" />
+            <Grid Grid.Row="1" Height="20" Margin="0,4,0,0"
+                  Visibility="{Binding ShowProgress, Converter={StaticResource BooleanToVisibilityConverter}}"
+                  Opacity="{Binding TextOpacity}">
+                <ProgressBar Height="3" Maximum="1" Value="{Binding Progress}" VerticalAlignment="Bottom"
+                             Foreground="White" Background="#40000000" BorderThickness="0" />
+                <TextBlock Text="{Binding ProgressText}" HorizontalAlignment="Right" VerticalAlignment="Top"
+                           Foreground="White" Margin="0,0,6,0" />
+            </Grid>
+        </Grid>
+    </Border>
 </Window>

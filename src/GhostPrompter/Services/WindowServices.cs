@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Input;
 using GhostPrompter.Models;
 using GhostPrompter.Native;
 
@@ -21,21 +22,34 @@ public sealed class CaptureExclusionService(LoggingService logging)
             return new CaptureExclusionResult(error == 87 ? CaptureExclusionState.Unavailable : CaptureExclusionState.Failed, null, error);
         }
         uint? known = NativeMethods.GetWindowDisplayAffinity(handle, out var affinity) ? affinity : null;
+        if (known.HasValue && known.Value != NativeMethods.WdaExcludeFromCapture)
+        {
+            logging.Write("ERROR", $"Capture exclusion verification failed for {window.GetType().Name}.");
+            return new CaptureExclusionResult(CaptureExclusionState.Failed, known, null);
+        }
         logging.Write("INFO", $"Capture exclusion active for {window.GetType().Name}.");
         return new CaptureExclusionResult(CaptureExclusionState.Active, known, null);
     }
 }
 
 /// <summary>Preserves native WPF styles while applying no-activate and click-through behavior.</summary>
-public sealed class WindowStyleService
+public sealed class WindowStyleService(LoggingService? logging = null)
 {
-    public void ApplyPresentationStyles(Window window, bool clickThrough)
+    public bool ApplyPresentationStyles(Window window, bool clickThrough)
     {
         var handle = new WindowInteropHelper(window).Handle;
-        if (handle == nint.Zero) return;
+        if (handle == nint.Zero) return false;
         var style = NativeMethods.GetWindowLongPtr(handle, NativeMethods.GwlExStyle).ToInt64() | NativeMethods.WsExNoActivate;
         style = clickThrough ? style | NativeMethods.WsExTransparent : style & ~NativeMethods.WsExTransparent;
-        NativeMethods.SetWindowLongPtr(handle, NativeMethods.GwlExStyle, (nint)style);
+        Marshal.SetLastPInvokeError(0);
+        var previous = NativeMethods.SetWindowLongPtr(handle, NativeMethods.GwlExStyle, (nint)style);
+        var error = Marshal.GetLastPInvokeError();
+        if (previous == nint.Zero && error != 0)
+        {
+            logging?.Write("ERROR", $"Could not update prompter window styles (Windows error {error}).");
+            return false;
+        }
+        return true;
     }
 }
 
@@ -73,13 +87,20 @@ public sealed class GlobalHotkeyService : IDisposable
     /// <summary>Registers defaults or validated persisted replacements, reporting every independent failure.</summary>
     public void Register(IEnumerable<HotkeySettings>? settings)
     {
-        foreach (var registeredId in _registered.Keys) NativeMethods.UnregisterHotKey(_handle, registeredId);
-        _registered.Clear(); _status.Clear(); _activeSettings.Clear();
+        Suspend();
+        _status.Clear(); _activeSettings.Clear();
         var selected = settings?.ToArray() is { Length: > 0 } configured ? configured : DefaultSettings;
         var duplicates = new HashSet<(uint Modifiers, uint Key)>();
         var id = 1;
         foreach (var setting in selected)
         {
+            if (setting is null || string.IsNullOrWhiteSpace(setting.Action) || setting.Key is 0 or > 0xFF
+                || (setting.Modifiers & ~(ModAlt | ModControl)) != 0)
+            {
+                _status[$"Invalid shortcut {id++}"] = "Invalid shortcut in settings";
+                _logging?.Write("ERROR", "Invalid hotkey entry in settings.");
+                continue;
+            }
             if (!SupportedActions.Contains(setting.Action))
             {
                 _status[setting.Action] = "Unknown action in settings";
@@ -104,22 +125,86 @@ public sealed class GlobalHotkeyService : IDisposable
         if (NativeMethods.RegisterHotKey(_handle, id, setting.Modifiers | ModNoRepeat, setting.Key))
         {
             _registered[id] = setting.Action;
-            _status[$"{setting.Action} ({FormatShortcut(setting)})"] = "Registered";
+            _status[$"{GetActionDisplayName(setting.Action)} — {FormatShortcut(setting)}"] = "Registered";
         }
         else
         {
             var error = Marshal.GetLastWin32Error();
-            _status[$"{setting.Action} ({FormatShortcut(setting)})"] = $"Unavailable (Windows error {error})";
+            _status[$"{GetActionDisplayName(setting.Action)} — {FormatShortcut(setting)}"] = $"Unavailable (Windows error {error})";
             _logging?.Write("ERROR", $"Hotkey {FormatShortcut(setting)} for {setting.Action} could not be registered (Windows error {error}).");
         }
     }
 
-    private static string FormatShortcut(HotkeySettings setting) => $"0x{setting.Modifiers:X}+0x{setting.Key:X}";
+    /// <summary>Temporarily unregisters shortcuts while preserving their editable settings.</summary>
+    public void Suspend()
+    {
+        foreach (var id in _registered.Keys) NativeMethods.UnregisterHotKey(_handle, id);
+        _registered.Clear();
+    }
+
+    /// <summary>Formats a shortcut using names intended for the settings interface.</summary>
+    public static string FormatShortcut(HotkeySettings setting)
+    {
+        var parts = new List<string>();
+        if ((setting.Modifiers & ModControl) != 0) parts.Add("Ctrl");
+        if ((setting.Modifiers & ModAlt) != 0) parts.Add("Alt");
+        parts.Add(FormatKey(setting.Key));
+        return string.Join(" + ", parts);
+    }
+
+    /// <summary>Returns a user-facing name for a shortcut action.</summary>
+    public static string GetActionDisplayName(string action) => action switch
+    {
+        "NextPage" => "Next page / Faster",
+        "PreviousPage" => "Previous page / Slower",
+        "TogglePlayPause" => "Play or pause",
+        "ToggleVisibility" => "Show or hide prompter",
+        "TogglePresentation" => "Configuration or Presentation",
+        "ToggleClickThrough" => "Click Through",
+        "IncreaseText" => "Increase text size",
+        "DecreaseText" => "Decrease text size",
+        "Restart" => "First page or restart",
+        _ => action,
+    };
+
+    private static string FormatKey(uint virtualKey)
+    {
+        if (virtualKey is >= 0x30 and <= 0x39 or >= 0x41 and <= 0x5A) return ((char)virtualKey).ToString();
+        if (virtualKey is >= 0x60 and <= 0x69) return $"Numpad {virtualKey - 0x60}";
+        if (virtualKey is >= 0x70 and <= 0x87) return $"F{virtualKey - 0x6F}";
+        return virtualKey switch
+        {
+            0x08 => "Backspace",
+            0x09 => "Tab",
+            0x0D => "Enter",
+            0x20 => "Space",
+            0x21 => "Page Up",
+            0x22 => "Page Down",
+            0x23 => "End",
+            0x24 => "Home",
+            0x25 => "Left Arrow",
+            0x26 => "Up Arrow",
+            0x27 => "Right Arrow",
+            0x28 => "Down Arrow",
+            0x2D => "Insert",
+            0x2E => "Delete",
+            0x6A => "Numpad ×",
+            0x6B => "Numpad +",
+            0x6D => "Numpad −",
+            0x6F => "Numpad ÷",
+            0xBA => ";",
+            0xBB => "+",
+            0xBC => ",",
+            0xBD => "−",
+            0xBE => ".",
+            _ => KeyInterop.KeyFromVirtualKey((int)virtualKey).ToString(),
+        };
+    }
 
     private nint WndProc(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
     {
         if (msg == NativeMethods.WmHotkey && _registered.TryGetValue(wParam.ToInt32(), out var action)) { Triggered?.Invoke(this, action); handled = true; }
         return nint.Zero;
     }
-    public void Dispose() { foreach (var id in _registered.Keys) NativeMethods.UnregisterHotKey(_handle, id); _registered.Clear(); }
+    public void Dispose() => Suspend();
 }

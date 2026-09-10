@@ -4,7 +4,7 @@ GhostPrompter is a Windows presenter overlay for recording technical, educationa
 
 ## Run
 
-Run `GhostPrompter.exe`. The application opens in Configuration mode, paused, with a separate overlay window. Load a TXT, Markdown, or DOCX script. GhostPrompter never edits or saves the source script.
+Run `GhostPrompter.exe`. The application opens in Configuration mode, paused, with a separate overlay window. Load a TXT, Markdown, or DOCX script. Use **Edit text…** for quick corrections; **Save as…** writes a new UTF-8 `.txt` file and immediately loads that copy into the prompter. The imported source file is never overwritten automatically.
 
 Sample scripts are available in [Docs/sample](Docs/sample): one for Blocks mode and one for Scroll mode.
 Use [the functional validation checklist](Docs/functional-validation.md) for the final interactive recipe.
@@ -27,7 +27,7 @@ TXT must be valid UTF-8. Markdown formatting is removed while preserving readabl
 
 ## Modes and controls
 
-Blocks shows one automatically paginated page at a time. Next and Previous stop at the document boundaries. Scroll moves continuous content at 50 DIP/s by default, adjustable from 10 to 300. Its first line begins at 50% of useful height by default; Starting height is adjustable from 10% to 80%. Restart always returns to the beginning and stays paused.
+Blocks shows one automatically paginated page at a time. Next and Previous stop at the document boundaries. Scroll moves continuous content at 50 DIP/s by default, adjustable from 2 to 150 in 2 DIP/s increments. Its first line begins at 50% of useful height by default; Starting height is adjustable from 10% to 80%. Restart always returns to the beginning and stays paused.
 
 Default global shortcuts:
 
@@ -44,13 +44,17 @@ Default global shortcuts:
 
 Windows can reserve a shortcut for another program. GhostPrompter reports registration status in Configuration; a failed shortcut does not disable valid shortcuts.
 
-Advanced users can replace the `hotkeys` array in `%LOCALAPPDATA%\GhostPrompter\settings.json` while the application is closed. Changes take effect at the next launch. `modifiers` uses the Windows values `1` for Alt and `2` for Ctrl; `key` is a virtual-key code. For example, Ctrl+Alt+Up is:
+Use **Keyboard shortcuts…** in Configuration to view every shortcut with readable key names, capture new combinations, detect duplicates, and restore the defaults. Changes are applied when the shortcut window is saved.
+
+Use **Edit text…** after loading a script to correct wording in a dark, multiline editor. **Cancel** discards the editor contents. **Save as…** accepts TXT destinations only and reloads the saved copy at its beginning.
+
+Advanced users can also replace the `hotkeys` array in `%LOCALAPPDATA%\GhostPrompter\settings.json` while the application is closed. Changes take effect at the next launch. `modifiers` uses the Windows values `1` for Alt and `2` for Ctrl; `key` is a virtual-key code. For example, Ctrl+Alt+Up is:
 
 ```json
 { "action": "NextPage", "modifiers": 3, "key": 38 }
 ```
 
-Duplicate combinations are rejected. Use **Restore default shortcuts** in Configuration to return to the built-in set.
+Duplicate combinations are rejected. Use **Restore defaults** in the Keyboard shortcuts window to return to the built-in set.
 
 ## Windows and capture
 

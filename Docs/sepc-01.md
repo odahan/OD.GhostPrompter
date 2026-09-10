@@ -1,6 +1,6 @@
 # GhostPrompter — Spécifications du MVP
 
-Version révisée le 9 septembre 2026. Ce document remplace la spécification initiale et intègre les décisions de revue.
+Version révisée le 10 septembre 2026. Ce document remplace la spécification initiale et intègre les décisions de revue.
 
 # 1. Objet du projet
 
@@ -22,7 +22,8 @@ La fenêtre reste au premier plan, peut être transparente, ne prend pas le focu
 ## Inclus dans le MVP
 
 - Application WPF en C# et .NET 10, MVVM avec CommunityToolkit.Mvvm.
-- Chargement et rechargement manuel de TXT, Markdown et DOCX en lecture seule.
+- Chargement et rechargement manuel de TXT, Markdown et DOCX.
+- Éditeur sombre de corrections rapides, avec abandon ou Save As en TXT UTF-8 uniquement.
 - Import en texte brut suivi d'un parser GhostPrompter commun.
 - Titres facultatifs [Titre] et séparateurs de blocs ---.
 - Blocks avec pagination automatique des blocs trop longs.
@@ -37,7 +38,7 @@ La fenêtre reste au premier plan, peut être transparente, ne prend pas le focu
 
 ## Hors MVP
 
-Ne pas ajouter d'éditeur, modification ou sauvegarde de script, intégration PowerPoint, synchronisation avec les slides, reconnaissance vocale, synchronisation à la voix, MIDI, intégration spécifique Stream Deck ou pédale USB, télécommande réseau, application mobile, cloud, compte utilisateur, mise à jour automatique, télémétrie, IA, résumé ou réécriture du script.
+Ne pas ajouter d'éditeur riche, sauvegarde automatique ou écrasement implicite du fichier source, intégration PowerPoint, synchronisation avec les slides, reconnaissance vocale, synchronisation à la voix, MIDI, intégration spécifique Stream Deck ou pédale USB, télécommande réseau, application mobile, cloud, compte utilisateur, mise à jour automatique, télémétrie, IA, résumé ou réécriture du script.
 
 La pagination est une opération de mise en page sans modification du fichier ni réécriture du texte.
 
@@ -119,7 +120,7 @@ TXT / MD / DOCX -> extraction en texte brut -> parser GhostPrompter unique
                -> document logique -> pagination Blocks ou affichage Scroll
 ```
 
-Aucun style Word ou Markdown n'est conservé. Un style Word ou un titre Markdown ne crée pas de titre GhostPrompter. Le changement de mode utilise le document parsé sans relire le fichier. Aucune édition, sauvegarde, Undo/Redo ou gestion de document modifié.
+Aucun style Word ou Markdown n'est conservé. Un style Word ou un titre Markdown ne crée pas de titre GhostPrompter. Le changement de mode utilise le document parsé sans relire le fichier. L'éditeur travaille sur le texte brut extrait, conserve la syntaxe GhostPrompter visible et propose seulement Cancel et Save As. Save As accepte exclusivement une destination `.txt`, écrit en UTF-8 puis recharge la copie sauvegardée depuis le début. Cancel et la fermeture de la fenêtre ne modifient pas le document chargé. Il n'y a ni sauvegarde directe, ni sauvegarde automatique, ni gestion de document modifié au-delà de l'Undo local standard du champ de saisie.
 
 Après normalisation des fins de ligne, reconnaître seulement :
 
@@ -332,9 +333,9 @@ Un changement de police, dimensions, DPI ou Show titles/Show progress recalcule 
 ```text
 Unité de vitesse : DIP/s, indépendante du DPI
 Vitesse initiale : 50 DIP/s
-Minimum : 10 DIP/s
-Maximum : 300 DIP/s
-Pas : 10 DIP/s
+Minimum : 2 DIP/s
+Maximum : 150 DIP/s
+Pas : 2 DIP/s
 ```
 
 ScrollController maintient position, vitesse, IsRunning et progression. Calculer le mouvement indépendamment de la fréquence d'affichage : offset += speed * elapsedSeconds, avec une horloge monotone.
@@ -365,14 +366,16 @@ Afficher une barre fine en bas, désactivable. Ne pas afficher une progression e
 
 ## MainWindow
 
-Panneau de chargement, configuration et état, sans éditeur :
+Panneau de chargement et de configuration, sans cadre d'état général :
 
-- Source : fichier courant, Load, Reload, Loading/Cancel.
+- Source : fichier courant, Load, Reload, Edit text et Loading/Cancel.
 - Mode : Blocks / Scroll.
 - Affichage : taille de police, Background opacity, Text opacity, Show titles, Show progress.
-- Fenêtre : Configuration/Presentation, verrouillage, Click Through, Show/Hide, Reset window position.
+- Fenêtre : switches Configuration/Presentation et Click Through avec états explicites, Show/Hide, Reset window position.
 - Lecture : commandes adaptées au mode ; vitesse, Starting height et Restart en Scroll.
-- État : exclusion de chaque fenêtre, chaque hotkey, progression et fichier courant.
+- Raccourcis : bouton ouvrant une fenêtre sombre dédiée ; seul un résumé lisible des collisions éventuelles apparaît dans MainWindow.
+
+Edit text ouvre une fenêtre modale sombre avec un champ multiligne et uniquement les commandes Cancel et Save as. Les raccourcis globaux sont suspendus pendant l'édition pour éviter de déclencher les commandes du prompteur en saisissant. La destination est limitée au format TXT ; après une sauvegarde réussie, ce nouveau fichier devient la source courante.
 
 La préparation peut prendre le focus : choix du fichier/mode, réglages précis, déplacement/redimensionnement.
 
@@ -494,12 +497,13 @@ En Configuration, Toggle Click Through change la préférence mais pas l'état t
 
 ## Configuration et collisions
 
-L'interface complète de capture de hotkeys n'est pas obligatoire. Le modèle et settings.json permettent leur redéfinition ; les changements manuels prennent effet au redémarrage.
+Une fenêtre sombre dédiée affiche et permet de modifier tous les raccourcis. L'utilisateur choisit Change puis saisit directement la nouvelle combinaison ; les noms des actions et touches restent lisibles et aucun code de touche brut n'est affiché.
 
-- Afficher action, combinaison et résultat d'enregistrement pour chaque raccourci.
+- Afficher action et combinaison en langage courant pour chaque raccourci.
 - Détecter les doublons internes avant RegisterHotKey.
 - Journaliser/signaler les collisions externes et conserver les raccourcis valides.
-- Fournir Restore default shortcuts, sans prétendre que les valeurs par défaut sont exemptes de conflits externes.
+- Fournir Restore defaults dans cette fenêtre, sans prétendre que les valeurs par défaut sont exemptes de conflits externes.
+- Suspendre temporairement les hotkeys pendant la capture afin qu'une combinaison existante ne déclenche pas son action.
 - Libérer les anciens raccourcis avant remplacement et tous les raccourcis à la fermeture.
 - Ne pas contourner les collisions par des hooks clavier intrusifs.
 

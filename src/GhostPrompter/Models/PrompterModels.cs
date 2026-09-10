@@ -15,7 +15,7 @@ public sealed record PrompterElement(PrompterElementKind Kind, string Text, int 
 /// <summary>Represents a logical block delimited by separators.</summary>
 public sealed record PrompterBlock(int Index, IReadOnlyList<PrompterElement> Elements)
 {
-    public PrompterElement? LeadingTitle => Elements.FirstOrDefault(x => x.Kind == PrompterElementKind.Title);
+    public PrompterElement? LeadingTitle => Elements.FirstOrDefault() is { Kind: PrompterElementKind.Title } title ? title : null;
 }
 
 /// <summary>Represents the parsed script independently of its file format.</summary>

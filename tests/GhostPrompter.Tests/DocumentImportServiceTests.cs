@@ -72,6 +72,35 @@ public sealed class DocumentImportServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task LoadAsync_PreservesCodeIdentifiersGenericTypesAndAutolinks()
+    {
+        var path = Path.Combine(_directory, "code.md");
+        await File.WriteAllTextAsync(path,
+            "`List<string> value` and snake_case_name\n<https://example.com>\n```csharp\nList<string> items;\n```",
+            new UTF8Encoding(false));
+
+        var document = await _service.LoadAsync(path);
+
+        Assert.Contains("List<string> value and snake_case_name", document.SourceText);
+        Assert.Contains("https://example.com", document.SourceText);
+        Assert.Contains("List<string> items;", document.SourceText);
+        Assert.DoesNotContain("csharp", document.SourceText);
+    }
+
+    [Fact]
+    public async Task LoadAsync_RemovesEmphasisWithoutChangingLiteralOperatorsOrIdentifiers()
+    {
+        var path = Path.Combine(_directory, "literals.md");
+        await File.WriteAllTextAsync(path, "_italic_ and **bold**\nsnake_case_name\n2 * 3 * 4", new UTF8Encoding(false));
+
+        var document = await _service.LoadAsync(path);
+
+        Assert.Contains("italic and bold", document.SourceText);
+        Assert.Contains("snake_case_name", document.SourceText);
+        Assert.Contains("2 * 3 * 4", document.SourceText);
+    }
+
+    [Fact]
     public async Task LoadAsync_ImportsDirectDocxParagraphsAndExcludesTables()
     {
         var path = Path.Combine(_directory, "script.docx");

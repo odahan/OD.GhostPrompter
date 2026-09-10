@@ -33,6 +33,19 @@ public sealed class ScrollControllerTests
     }
 
     [Fact]
+    public void Speed_UsesTwoDipIncrementsAcrossTheHumanReadableRange()
+    {
+        var controller = new ScrollController();
+        controller.SetSpeed(3);
+        Assert.Equal(4, controller.Speed);
+
+        controller.ChangeSpeed(-2);
+        Assert.Equal(2, controller.Speed);
+        Assert.Equal(2, ScrollController.MinimumSpeed);
+        Assert.Equal(150, ScrollController.MaximumSpeed);
+    }
+
+    [Fact]
     public void EmptyContent_CannotStartPlayback()
     {
         var controller = new ScrollController();

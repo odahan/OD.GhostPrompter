@@ -44,4 +44,15 @@ public sealed class PaginationServiceTests
         Assert.True(pages[1].RepeatsLeadingTitle);
         Assert.Equal("Title", pages[1].Elements[0].Text);
     }
+
+    [Fact]
+    public void Paginate_DoesNotSplitASurrogatePairWhenOneTextElementIsTooTall()
+    {
+        var block = new PrompterBlock(0, [new(PrompterElementKind.Text, "😀", 0)]);
+
+        var pages = new PaginationService().Paginate(block, 1, elements => elements.Sum(element => element.Text.Length));
+
+        Assert.Single(pages);
+        Assert.Equal("😀", pages[0].Elements.Single().Text);
+    }
 }

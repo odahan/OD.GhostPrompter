@@ -31,8 +31,8 @@ pause au lieu de tenter un rattrapage par un saut trop grand et illisible.
 [Régler le rythme de lecture]
 // Augmentez deux fois la vitesse, puis diminuez-la une fois avec les raccourcis globaux.
 
-La vitesse initiale est de cinquante DIP par seconde. La plage prise en charge va de dix à
-trois cents, avec un pas de dix. Augmenter la vitesse en mode Défilement doit prendre effet
+La vitesse initiale est de cinquante DIP par seconde. La plage prise en charge va de deux à
+cent cinquante, avec un pas de deux. Augmenter la vitesse en mode Défilement doit prendre effet
 sans inverser le sens. La diminuer sous le minimum doit rester au minimum, et l'augmenter
 au-delà du maximum doit rester au maximum. Modifier la vitesse pendant une pause doit
 garder la lecture en pause. Ces détails semblent mineurs, mais ils permettent au

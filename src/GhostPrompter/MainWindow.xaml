@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:GhostPrompter.Models"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
-        Title="GhostPrompter" Width="760" Height="640" MinWidth="620" MinHeight="500"
+        Title="GhostPrompter" Width="700" Height="680" MinWidth="560" MinHeight="500"
         WindowStyle="None" ResizeMode="CanResize" Background="{StaticResource SurfaceBrush}" Foreground="{StaticResource TextBrush}">
     <shell:WindowChrome.WindowChrome><shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="6" CornerRadius="0" GlassFrameThickness="0" UseAeroCaptionButtons="False" /></shell:WindowChrome.WindowChrome>
     <Border BorderBrush="{StaticResource AccentBrush}" BorderThickness="1" Background="{StaticResource SurfaceBrush}">
@@ -16,15 +16,38 @@
                     <Button Style="{StaticResource CloseCaptionButton}" Content="×" Click="OnCloseClick" ToolTip="Close" />
                 </StackPanel>
             </Grid>
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                <Grid Margin="22"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <Grid Margin="22" MinWidth="0"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                     <TextBlock FontSize="24" FontWeight="SemiBold" Text="GhostPrompter" />
-                    <StackPanel Grid.Row="1" Margin="0,18,0,0"><TextBlock Text="Source" FontWeight="Bold"/><TextBlock Text="{Binding CurrentFile}" TextTrimming="CharacterEllipsis" Foreground="{StaticResource MutedTextBrush}"/><StackPanel Orientation="Horizontal" Margin="0,8,0,0"><Button Content="Load" Command="{Binding LoadCommand}"/><Button Content="Reload" Command="{Binding ReloadCommand}" Margin="8,0,0,0"/><Button Content="Cancel" Command="{Binding CancelLoadCommand}" Margin="8,0,0,0"/></StackPanel></StackPanel>
+                    <StackPanel Grid.Row="1" Margin="0,18,0,0"><TextBlock Text="Source" FontWeight="Bold"/><TextBlock Text="{Binding CurrentFile}" TextTrimming="CharacterEllipsis" Foreground="{StaticResource MutedTextBrush}"/><WrapPanel Margin="0,8,0,0"><Button Content="Load" Command="{Binding LoadCommand}" Margin="0,0,8,8"/><Button Content="Reload" Command="{Binding ReloadCommand}" Margin="0,0,8,8"/><Button Content="Edit text…" Command="{Binding EditTextCommand}" Margin="0,0,8,8"/><Button Content="Cancel" Command="{Binding CancelLoadCommand}" Margin="0,0,8,8"/></WrapPanel><TextBlock Text="{Binding Status}" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/></StackPanel>
                     <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,18,0,0"><TextBlock Text="Mode" VerticalAlignment="Center" Margin="0,0,10,0"/><ComboBox Width="130" SelectedValuePath="Tag" SelectedValue="{Binding Mode}"><ComboBoxItem Content="Blocks" Tag="{x:Static models:PrompterMode.Blocks}"/><ComboBoxItem Content="Scroll" Tag="{x:Static models:PrompterMode.Scroll}"/></ComboBox></StackPanel>
-                    <Grid Grid.Row="3" Margin="0,18,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="Display" FontWeight="Bold"/><TextBlock Text="Font size" Margin="0,10,0,0"/><Slider Minimum="16" Maximum="72" Value="{Binding FontSize}"/><TextBlock Text="Background opacity"/><Slider Minimum="0" Maximum="100" Value="{Binding BackgroundOpacity}"/><TextBlock Text="Text opacity"/><Slider Minimum="20" Maximum="100" Value="{Binding TextOpacity}"/><CheckBox Content="Show titles" IsChecked="{Binding ShowTitles}"/><CheckBox Content="Show progress" IsChecked="{Binding ShowProgress}"/></StackPanel><StackPanel Grid.Column="1" Margin="30,0,0,0"><TextBlock Text="Scroll" FontWeight="Bold"/><TextBlock Text="Speed (DIP/s)" Margin="0,10,0,0"/><Slider Minimum="10" Maximum="300" TickFrequency="10" IsSnapToTickEnabled="True" Value="{Binding ScrollSpeed}"/><TextBlock Text="Starting height (%)"/><Slider Minimum="10" Maximum="80" TickFrequency="5" IsSnapToTickEnabled="True" Value="{Binding StartingHeight}"/><StackPanel Orientation="Horizontal" Margin="0,12,0,0"><Button Content="Play / Pause" Command="{Binding TogglePlayPauseCommand}"/><Button Content="Restart" Command="{Binding RestartCommand}" Margin="8,0,0,0"/></StackPanel></StackPanel></Grid>
-                    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,18,0,0"><Button Content="Previous" Command="{Binding PreviousPageCommand}"/><Button Content="Next" Command="{Binding NextPageCommand}" Margin="8,0,0,0"/><Button Content="Show / Hide" Command="{Binding ToggleVisibilityCommand}" Margin="8,0,0,0"/><Button Content="Configuration / Presentation" Command="{Binding TogglePresentationCommand}" Margin="8,0,0,0"/><Button Content="Click Through" Command="{Binding ToggleClickThroughCommand}" Margin="8,0,0,0"/><Button Content="Reset window position" Command="{Binding ResetWindowPositionCommand}" Margin="8,0,0,0"/></StackPanel>
-                    <Border Grid.Row="5" Margin="0,18,0,0" Padding="12" Background="{StaticResource SurfaceRaisedBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="4"><StackPanel><TextBlock Text="Status" FontWeight="Bold"/><TextBlock Text="{Binding Status}" Margin="0,6,0,0" TextWrapping="Wrap"/><TextBlock Text="{Binding PresentationStatus}" Foreground="{StaticResource MutedTextBrush}"/><TextBlock Text="{Binding CaptureStatus}" Foreground="{StaticResource MutedTextBrush}"/><TextBlock Text="{Binding HotkeyStatus}" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/><TextBlock Text="{Binding SettingsStatus}" Foreground="#F0883E" TextWrapping="Wrap"/><Button Content="Restore default shortcuts" Command="{Binding RestoreDefaultShortcutsCommand}" HorizontalAlignment="Left" Margin="0,10,0,0"/></StackPanel></Border>
-                    <TextBlock Grid.Row="6" Margin="0,18,0,0" Text="Default shortcuts: Ctrl+Alt+Up/Down, P, Space, L, T, Add/Subtract, Plus/Minus and Home." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}"/>
+                    <Grid Grid.Row="3" Margin="0,18,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="Display" FontWeight="Bold"/>
+                            <TextBlock Margin="0,10,0,0"><Run Text="Font size: "/><Run Text="{Binding FontSize, Mode=OneWay, StringFormat={}{0:F0}}"/></TextBlock>
+                            <Slider Minimum="16" Maximum="72" Value="{Binding FontSize}"/>
+                            <TextBlock><Run Text="Background opacity: "/><Run Text="{Binding BackgroundOpacity, Mode=OneWay, StringFormat={}{0:F0}%}"/></TextBlock>
+                            <Slider Minimum="0" Maximum="100" Value="{Binding BackgroundOpacity}"/>
+                            <TextBlock><Run Text="Text opacity: "/><Run Text="{Binding TextOpacity, Mode=OneWay, StringFormat={}{0:F0}%}"/></TextBlock>
+                            <Slider Minimum="20" Maximum="100" Value="{Binding TextOpacity}"/>
+                            <CheckBox Content="Show titles" IsChecked="{Binding ShowTitles}"/>
+                            <CheckBox Content="Show progress" IsChecked="{Binding ShowProgress}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="30,0,0,0" Visibility="{Binding IsScrollMode, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="Scroll" FontWeight="Bold"/>
+                            <TextBlock Margin="0,10,0,0"><Run Text="Speed: "/><Run Text="{Binding ScrollSpeed, Mode=OneWay, StringFormat={}{0:F0} DIP/s}"/></TextBlock>
+                            <Slider Minimum="2" Maximum="150" TickFrequency="2" IsSnapToTickEnabled="True" Value="{Binding ScrollSpeed}"/>
+                            <TextBlock><Run Text="Starting height: "/><Run Text="{Binding StartingHeight, Mode=OneWay, StringFormat={}{0:F0}%}"/></TextBlock>
+                            <Slider Minimum="10" Maximum="80" TickFrequency="5" IsSnapToTickEnabled="True" Value="{Binding StartingHeight}"/>
+                            <WrapPanel Margin="0,12,0,0"><Button Content="Play / Pause" Command="{Binding TogglePlayPauseCommand}" Margin="0,0,8,8"/><Button Content="Restart" Command="{Binding RestartCommand}" Margin="0,0,8,8"/></WrapPanel>
+                        </StackPanel>
+                    </Grid>
+                    <StackPanel Grid.Row="4" Margin="0,18,0,0">
+                        <WrapPanel Visibility="{Binding IsBlocksMode, Converter={StaticResource BooleanToVisibilityConverter}}"><Button Content="Previous" Command="{Binding PreviousPageCommand}" Margin="0,0,8,8"/><Button Content="Next" Command="{Binding NextPageCommand}" Margin="0,0,8,8"/><Button Content="First page" Command="{Binding RestartCommand}" Margin="0,0,8,8"/></WrapPanel>
+                        <WrapPanel VerticalAlignment="Center"><Button Content="Show / Hide" Command="{Binding ToggleVisibilityCommand}" Margin="0,0,8,8"/><ToggleButton Style="{StaticResource PresentationToggleSwitch}" IsChecked="{Binding IsPresentation, Mode=OneWay}" Command="{Binding TogglePresentationCommand}" Margin="0,0,12,8" ToolTip="Switch between Configuration and Presentation" AutomationProperties.Name="Configuration or Presentation mode"/><StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,8"><TextBlock Text="Click Through" VerticalAlignment="Center" Margin="0,0,8,0"/><ToggleButton Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ClickThroughPreferred, Mode=OneWay}" Command="{Binding ToggleClickThroughCommand}" ToolTip="Enable or disable Click Through in Presentation" AutomationProperties.Name="Click Through" /></StackPanel><Button Content="Reset window position" Command="{Binding ResetWindowPositionCommand}" Margin="0,0,8,8"/></WrapPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Row="5" Margin="0,18,0,0"><Button Content="Keyboard shortcuts…" Command="{Binding OpenShortcutSettingsCommand}" HorizontalAlignment="Left"/><TextBlock Text="{Binding HotkeyStatus}" Margin="0,8,0,0" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/></StackPanel>
                 </Grid>
             </ScrollViewer>
         </Grid>

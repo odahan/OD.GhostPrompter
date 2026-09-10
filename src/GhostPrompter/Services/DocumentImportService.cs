@@ -37,13 +37,14 @@ public sealed class DocumentImportService(ScriptParserService parser) : IDocumen
         var text = extension.ToLowerInvariant() switch
         {
             ".txt" => await ReadUtf8Async(path, cancellationToken),
-            ".md" or ".markdown" => MarkdownToText(await ReadUtf8Async(path, cancellationToken)),
+            ".md" or ".markdown" => MarkdownToText(await ReadUtf8Async(path, cancellationToken), cancellationToken),
             ".docx" => docxExtraction!.Text,
             _ => throw new NotSupportedException("Only TXT, Markdown and DOCX files are supported."),
         };
         EnsureExtractedLength(text.Length);
         cancellationToken.ThrowIfCancellationRequested();
-        var parsed = parser.Parse(text);
+        var parsed = parser.Parse(text, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         return docxExtraction?.HasIgnoredTables == true
             ? new PrompterDocument(parsed.Elements, parsed.Blocks, parsed.SourceText, ["Tables were ignored during DOCX import."])
             : parsed;
@@ -82,7 +83,7 @@ public sealed class DocumentImportService(ScriptParserService parser) : IDocumen
         foreach (var paragraph in body.Elements<Paragraph>())
         {
             cancellationToken.ThrowIfCancellationRequested();
-            foreach (var run in paragraph.Descendants<Run>().Where(run => !run.Ancestors<Drawing>().Any()))
+            foreach (var run in paragraph.Descendants<Run>().Where(run => !run.Ancestors().Any(IsExcludedDocxContainer)))
             {
                 if (run.Ancestors<DeletedRun>().Any()) continue;
                 foreach (var child in run.ChildElements)
@@ -110,24 +111,34 @@ public sealed class DocumentImportService(ScriptParserService parser) : IDocumen
     }
 
     /// <summary>Converts the supported Markdown subset to readable plain text without evaluating active content.</summary>
-    internal static string MarkdownToText(string markdown)
+    internal static string MarkdownToText(string markdown, CancellationToken cancellationToken = default)
     {
         var text = Regex.Replace(markdown, "(?is)<(script|style)\\b[^>]*>.*?</\\1>", string.Empty);
         var output = new List<string>();
+        string? fence = null;
         foreach (var sourceLine in text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'))
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            var fenceMatch = Regex.Match(sourceLine, "^\\s{0,3}(`{3,}|~{3,})");
+            if (fenceMatch.Success)
+            {
+                var marker = fenceMatch.Groups[1].Value;
+                if (fence is null) fence = marker;
+                else if (marker[0] == fence[0] && marker.Length >= fence.Length) fence = null;
+                continue;
+            }
+            if (fence is not null)
+            {
+                output.Add(sourceLine);
+                continue;
+            }
             var line = sourceLine;
             var reserved = line.Trim() is "---" || (line.Trim().Length > 2 && line.Trim()[0] == '[' && line.Trim()[^1] == ']');
             if (!reserved && Regex.IsMatch(line, "^\\s*([-*_])(?:\\s*\\1){2,}\\s*$")) { output.Add(string.Empty); continue; }
             if (!reserved) line = Regex.Replace(line, "^\\s{0,3}#{1,6}\\s+", "");
             line = Regex.Replace(line, "^\\s{0,3}>\\s?", "");
             line = Regex.Replace(line, "^\\s*(?:[-+*]|\\d+[.)])\\s+", "");
-            line = Regex.Replace(line, "!\\[([^]]*)\\]\\([^)]*\\)", "$1");
-            line = Regex.Replace(line, "\\[([^]]+)\\]\\([^)]*\\)", "$1");
-            line = Regex.Replace(line, "<[^>]+>", string.Empty);
-            line = line.Replace("`", string.Empty);
-            line = Regex.Replace(line, "(?<!\\*)\\*{1,3}([^*]+)\\*{1,3}", "$1");
-            line = Regex.Replace(line, "(?<!_)_{1,3}([^_]+)_{1,3}", "$1");
+            line = StripMarkdownInline(line);
             if (Regex.IsMatch(line, "^\\s*\\|?\\s*:?-{3,}:?\\s*(\\|\\s*:?-{3,}:?\\s*)+\\|?\\s*$")) continue;
             if (!reserved && Regex.Matches(line, "\\|").Count >= 2)
             {
@@ -137,6 +148,30 @@ public sealed class DocumentImportService(ScriptParserService parser) : IDocumen
         }
         return string.Join("\n", output);
     }
+
+    private static string StripMarkdownInline(string line)
+    {
+        var codeSpans = new List<string>();
+        line = Regex.Replace(line, "(`+)(.+?)\\1", match =>
+        {
+            codeSpans.Add(match.Groups[2].Value);
+            return $"\uE000{codeSpans.Count - 1}\uE001";
+        });
+        line = Regex.Replace(line, "!\\[([^]]*)\\]\\([^)]*\\)", "$1");
+        line = Regex.Replace(line, "\\[([^]]+)\\]\\([^)]*\\)", "$1");
+        line = Regex.Replace(line, "<(https?://[^>]+)>", "$1", RegexOptions.IgnoreCase);
+        line = Regex.Replace(line,
+            "</?(?:a|abbr|b|blockquote|br|code|div|em|h[1-6]|hr|i|img|li|ol|p|pre|span|strong|table|tbody|td|th|thead|tr|ul)\\b[^>]*>",
+            string.Empty,
+            RegexOptions.IgnoreCase);
+        line = Regex.Replace(line, "(?<!\\*)\\*{1,3}(?=\\S)([^*]*?\\S)\\*{1,3}(?!\\*)", "$1");
+        line = Regex.Replace(line, "(?<![\\w_])_{1,3}(?=\\S)([^_]*?\\S)_{1,3}(?![\\w_])", "$1");
+        for (var index = 0; index < codeSpans.Count; index++) line = line.Replace($"\uE000{index}\uE001", codeSpans[index], StringComparison.Ordinal);
+        return line;
+    }
+
+    private static bool IsExcludedDocxContainer(DocumentFormat.OpenXml.OpenXmlElement element) =>
+        element is Drawing || element.LocalName is "txbxContent" or "textbox";
 
     private sealed record DocxExtraction(string Text, bool HasIgnoredTables);
 }

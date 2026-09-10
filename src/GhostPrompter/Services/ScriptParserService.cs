@@ -6,7 +6,7 @@ namespace GhostPrompter.Services;
 public sealed class ScriptParserService
 {
     /// <summary>Parses normalized or non-normalized plain text into logical blocks.</summary>
-    public PrompterDocument Parse(string text)
+    public PrompterDocument Parse(string text, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(text);
         var normalized = text.Replace("\r\n", "\n").Replace('\r', '\n');
@@ -27,6 +27,7 @@ public sealed class ScriptParserService
 
         foreach (var line in lines)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var trimmed = line.Trim();
             if (trimmed == "---")
             {
@@ -37,7 +38,7 @@ public sealed class ScriptParserService
             {
                 var kind = PrompterElementKind.Text;
                 var value = line;
-                if (trimmed.Length > 2 && trimmed[0] == '[' && trimmed[^1] == ']')
+                if (trimmed.Length > 2 && trimmed[0] == '[' && trimmed[^1] == ']' && !string.IsNullOrWhiteSpace(trimmed[1..^1]))
                 {
                     kind = PrompterElementKind.Title;
                     value = trimmed[1..^1];

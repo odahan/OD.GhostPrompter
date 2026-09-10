@@ -1,0 +1,51 @@
+<Window x:Class="GhostPrompter.TextEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="Edit prompter text" Width="820" Height="680" MinWidth="560" MinHeight="420"
+        WindowStartupLocation="CenterOwner" WindowStyle="None" ResizeMode="CanResize"
+        Background="{StaticResource SurfaceBrush}" Foreground="{StaticResource TextBrush}">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="6" CornerRadius="0" GlassFrameThickness="0" UseAeroCaptionButtons="False" />
+    </shell:WindowChrome.WindowChrome>
+    <Border BorderBrush="{StaticResource AccentBrush}" BorderThickness="1" Background="{StaticResource SurfaceBrush}">
+        <Grid>
+            <Grid.RowDefinitions><RowDefinition Height="34"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <Grid Grid.Row="0" Background="{StaticResource SurfaceRaisedBrush}" MouseLeftButtonDown="OnTitleBarMouseLeftButtonDown">
+                <TextBlock Text="GhostPrompter — Edit text" VerticalAlignment="Center" Margin="14,0" FontWeight="SemiBold" />
+                <Button Style="{StaticResource CloseCaptionButton}" Content="×" Click="OnCancelClick" ToolTip="Cancel"
+                        HorizontalAlignment="Right" shell:WindowChrome.IsHitTestVisibleInChrome="True" />
+            </Grid>
+
+            <Grid Grid.Row="1" Margin="22">
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <StackPanel>
+                    <TextBlock Text="Edit prompter text" FontSize="24" FontWeight="SemiBold" />
+                    <TextBlock Text="Make the required corrections, then save the result as a new TXT file."
+                               Margin="0,8,0,16" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" />
+                </StackPanel>
+
+                <TextBox x:Name="Editor" Grid.Row="1" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}"
+                         AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                         SpellCheck.IsEnabled="True" UndoLimit="100" FontFamily="Consolas" FontSize="16"
+                         AutomationProperties.Name="Prompter text" />
+
+                <Grid Grid.Row="2" Margin="0,14,0,0">
+                    <TextBlock Text="{Binding Message}" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,210,0">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+                                <Style.Triggers><DataTrigger Binding="{Binding HasError}" Value="True"><Setter Property="Foreground" Value="#F0883E" /></DataTrigger></Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Cancel" Width="88" Click="OnCancelClick" />
+                        <Button Content="Save as…" Width="104" Margin="8,0,0,0" Click="OnSaveAsClick" />
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

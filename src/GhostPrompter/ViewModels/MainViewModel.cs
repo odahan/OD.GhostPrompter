@@ -19,6 +19,7 @@ public sealed partial class MainViewModel : ObservableObject
     private int _loadGeneration;
     private IReadOnlyList<PrompterPage> _pages = [];
     private CancellationTokenSource? _loadCancellation;
+    private bool _hasLoadedDocument;
 
     public MainViewModel(IDocumentImportService importService, ScriptParserService parser, PrompterViewModel prompter, LoggingService? logging = null)
     {
@@ -32,8 +33,14 @@ public sealed partial class MainViewModel : ObservableObject
     public event EventHandler? PresentationNeedsLayout;
     public event EventHandler? ScrollStateChanged;
     public event EventHandler? ResetWindowPositionRequested;
-    public event EventHandler? RestoreDefaultShortcutsRequested;
+    public event EventHandler? ShortcutSettingsRequested;
+    public event EventHandler? TextEditorRequested;
+    public bool CanEditText => _hasLoadedDocument;
+    public string EditableText => _document.SourceText;
     public bool IsScrollRunning => _scroll.IsRunning;
+    public bool IsScrollMode => Mode == PrompterMode.Scroll;
+    public bool IsBlocksMode => Mode == PrompterMode.Blocks;
+    public string PlaybackStatus => Mode == PrompterMode.Scroll ? (_scroll.IsRunning ? "Playing" : "Paused") : "Manual navigation";
     public string PresentationStatus => IsPresentation
         ? $"Presentation · Click Through: {(ClickThroughPreferred ? "active" : "off")}" 
         : $"Configuration · Click Through preference: {(ClickThroughPreferred ? "on (inactive)" : "off")}";
@@ -54,19 +61,31 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private double _startingHeight = 50;
     [ObservableProperty] private double _progress;
     [ObservableProperty] private string _captureStatus = "Windows capture exclusion not initialized";
+    [ObservableProperty] private string _windowStatus = "Window interaction styles not initialized";
     [ObservableProperty] private string _hotkeyStatus = "Hotkeys not initialized";
     [ObservableProperty] private string _settingsStatus = string.Empty;
 
-    partial void OnModeChanged(PrompterMode value) { _blockIndex = 0; _pageIndex = 0; ResetScrollLayout(); NotifyScrollState(); RefreshPresentation(); }
+    partial void OnModeChanged(PrompterMode value)
+    {
+        _blockIndex = 0;
+        _pageIndex = 0;
+        _pages = [];
+        ResetScrollLayout();
+        OnPropertyChanged(nameof(IsScrollMode));
+        OnPropertyChanged(nameof(IsBlocksMode));
+        NotifyScrollState();
+        RefreshPresentation();
+    }
     partial void OnIsPresentationChanged(bool value) => OnPropertyChanged(nameof(PresentationStatus));
     partial void OnClickThroughPreferredChanged(bool value) => OnPropertyChanged(nameof(PresentationStatus));
     partial void OnProgressChanged(double value) => Prompter.Progress = value;
-    partial void OnShowTitlesChanged(bool value) => RefreshPresentation();
-    partial void OnShowProgressChanged(bool value) { Prompter.ShowProgress = value; RefreshPresentation(); }
+    partial void OnShowTitlesChanged(bool value) { _pages = []; RefreshPresentation(); }
+    partial void OnShowProgressChanged(bool value) { Prompter.ShowProgress = value; _pages = []; Pause(); RefreshPresentation(); }
     partial void OnFontSizeChanged(double value)
     {
         FontSize = Math.Clamp(value, 16, 72);
         Prompter.FontSize = FontSize;
+        _pages = [];
         Pause();
         RefreshPresentation();
     }
@@ -77,7 +96,13 @@ public sealed partial class MainViewModel : ObservableObject
         Prompter.RefreshBackgroundBrush();
     }
     partial void OnTextOpacityChanged(double value) { TextOpacity = Math.Clamp(value, 20, 100); Prompter.TextOpacity = TextOpacity / 100; }
-    partial void OnStartingHeightChanged(double value) { StartingHeight = Math.Clamp(Math.Round(value / 5) * 5, 10, 80); Prompter.StartingHeight = StartingHeight; Pause(); }
+    partial void OnStartingHeightChanged(double value)
+    {
+        StartingHeight = Math.Clamp(Math.Round(value / 5) * 5, 10, 80);
+        Prompter.StartingHeight = StartingHeight;
+        Pause();
+        if (Mode == PrompterMode.Scroll) PresentationNeedsLayout?.Invoke(this, EventArgs.Empty);
+    }
     partial void OnScrollSpeedChanged(double value) { _scroll.SetSpeed(value); ScrollSpeed = _scroll.Speed; }
 
     [RelayCommand] private void Load() => RequestLoadFile?.Invoke(this, EventArgs.Empty);
@@ -96,12 +121,20 @@ public sealed partial class MainViewModel : ObservableObject
         {
             var loaded = await _importService.LoadAsync(path, _loadCancellation.Token);
             if (generation != _loadGeneration) return;
-            _document = loaded; _blockIndex = 0; _pageIndex = 0; _pages = []; ResetScrollLayout(); NotifyScrollState(); CurrentFile = path;
+            _document = loaded; _hasLoadedDocument = true; _blockIndex = 0; _pageIndex = 0; _pages = []; ResetScrollLayout(); NotifyScrollState(); CurrentFile = path;
+            EditTextCommand.NotifyCanExecuteChanged();
             Status = loaded.IsEmpty ? "The script is empty." : loaded.Warnings is { Count: > 0 } ? $"Script loaded. {string.Join(" ", loaded.Warnings)}" : "Script loaded.";
             _logging?.Write("INFO", $"Script loaded: {path}");
             RefreshPresentation();
         }
-        catch (OperationCanceledException) when (generation == _loadGeneration) { Status = "Loading was cancelled."; _logging?.Write("INFO", $"Script loading was cancelled: {path}"); }
+        catch (OperationCanceledException)
+        {
+            if (generation == _loadGeneration)
+            {
+                Status = "Loading was cancelled.";
+                _logging?.Write("INFO", $"Script loading was cancelled: {path}");
+            }
+        }
         catch (Exception exception) when (generation == _loadGeneration) { Status = $"Could not load script: {exception.Message}"; _logging?.Write("ERROR", $"Could not load script: {path}", exception); }
         finally { if (generation == _loadGeneration) IsLoading = false; }
     }
@@ -121,21 +154,25 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand] private void TogglePlayPause() { if (_scroll.IsRunning) Pause(); else Play(); }
     [RelayCommand] private void Restart()
     {
+        _blockIndex = 0;
+        _pageIndex = 0;
         _scroll.Restart();
         Prompter.ScrollOffset = 0;
         Progress = 0;
         NotifyScrollState();
-        RefreshPresentation();
+        if (Mode == PrompterMode.Blocks) RefreshPresentation();
+        else Prompter.ProgressText = $"{Progress:P0}";
     }
-    [RelayCommand] private void IncreaseSpeed() { _scroll.ChangeSpeed(10); ScrollSpeed = _scroll.Speed; }
-    [RelayCommand] private void DecreaseSpeed() { _scroll.ChangeSpeed(-10); ScrollSpeed = _scroll.Speed; }
+    [RelayCommand] private void IncreaseSpeed() { _scroll.ChangeSpeed(ScrollController.SpeedStep); ScrollSpeed = _scroll.Speed; }
+    [RelayCommand] private void DecreaseSpeed() { _scroll.ChangeSpeed(-ScrollController.SpeedStep); ScrollSpeed = _scroll.Speed; }
     [RelayCommand] private void IncreaseText() => FontSize += 2;
     [RelayCommand] private void DecreaseText() => FontSize -= 2;
     [RelayCommand] private void ToggleVisibility() { IsVisible = !IsVisible; Pause(); PresentationChanged?.Invoke(this, EventArgs.Empty); }
     [RelayCommand] private void TogglePresentation() { IsPresentation = !IsPresentation; Pause(); PresentationChanged?.Invoke(this, EventArgs.Empty); }
     [RelayCommand] private void ToggleClickThrough() { ClickThroughPreferred = !ClickThroughPreferred; PresentationChanged?.Invoke(this, EventArgs.Empty); }
     [RelayCommand] private void ResetWindowPosition() => ResetWindowPositionRequested?.Invoke(this, EventArgs.Empty);
-    [RelayCommand] private void RestoreDefaultShortcuts() => RestoreDefaultShortcutsRequested?.Invoke(this, EventArgs.Empty);
+    [RelayCommand] private void OpenShortcutSettings() => ShortcutSettingsRequested?.Invoke(this, EventArgs.Empty);
+    [RelayCommand(CanExecute = nameof(CanEditText))] private void EditText() => TextEditorRequested?.Invoke(this, EventArgs.Empty);
 
     public void AdvanceScroll(TimeSpan elapsed)
     {
@@ -143,19 +180,20 @@ public sealed partial class MainViewModel : ObservableObject
         if (!_scroll.IsRunning) NotifyScrollState();
     }
     /// <summary>Applies the current WPF text measurement to scrolling bounds and progress.</summary>
-    public void ConfigureScrollLayout(double contentHeight, double usefulHeight)
+    public void ConfigureScrollLayout(double maximumOffset)
     {
         if (Mode != PrompterMode.Scroll) return;
-        if (_document.IsEmpty || !_document.Elements.Any(element => element.Kind != PrompterElementKind.Separator && IsVisibleElement(element)))
+        if (_document.IsEmpty || !_document.Elements.Any(IsReadableElement))
         {
             ResetScrollLayout();
             Progress = 0;
             Prompter.ProgressText = string.Empty;
             return;
         }
-        var lineHeight = Math.Max(FontSize * 1.2, 1);
-        var maximumOffset = Math.Max(0, contentHeight - lineHeight);
-        _scroll.Configure(maximumOffset, contentHeight > 0);
+        var previousProgress = _scroll.Progress;
+        var hadLayout = _scroll.HasContent;
+        _scroll.Configure(Math.Max(0, maximumOffset), hasContent: true);
+        if (hadLayout) _scroll.SetOffset(_scroll.MaximumOffset * previousProgress);
         Pause();
         Progress = _scroll.Progress;
         Prompter.ScrollOffset = _scroll.Offset;
@@ -166,7 +204,7 @@ public sealed partial class MainViewModel : ObservableObject
     public void ReflowBlocks(double availableHeight, Func<IReadOnlyList<PrompterElement>, double> measure)
     {
         if (Mode != PrompterMode.Blocks || _document.IsEmpty || availableHeight <= 0) return;
-        var old = _pages.ElementAtOrDefault(_pageIndex);
+        var oldSourceOffset = _pages.ElementAtOrDefault(_pageIndex)?.StartPosition.ElementIndex;
         var pages = new List<PrompterPage>();
         var paginator = new PaginationService();
         foreach (var block in _document.Blocks)
@@ -176,7 +214,19 @@ public sealed partial class MainViewModel : ObservableObject
             pages.AddRange(paginator.Paginate(new PrompterBlock(block.Index, visible), availableHeight, measure));
         }
         _pages = pages;
-        _pageIndex = old is null ? 0 : Math.Clamp(pages.FindIndex(p => p.BlockIndex == old.BlockIndex && p.StartElement <= old.StartElement && p.EndElement >= old.StartElement), 0, Math.Max(0, pages.Count - 1));
+        if (oldSourceOffset is null)
+        {
+            _pageIndex = 0;
+        }
+        else
+        {
+            var containingPage = pages.FindIndex(page => PageContainsSourceOffset(page, oldSourceOffset.Value));
+            if (containingPage < 0)
+            {
+                containingPage = pages.FindLastIndex(page => page.StartPosition.ElementIndex <= oldSourceOffset.Value);
+            }
+            _pageIndex = Math.Clamp(containingPage, 0, Math.Max(0, pages.Count - 1));
+        }
         RefreshPresentation(requestLayout: false);
     }
     public void HandleHotkey(string action)
@@ -197,6 +247,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
     public void SetCaptureStatus(string value) => CaptureStatus = value;
+    public void SetWindowStatus(string value) => WindowStatus = value;
     public void SetHotkeyStatus(string value) => HotkeyStatus = value;
     public void SetSettingsStatus(string value) => SettingsStatus = value;
 
@@ -234,9 +285,14 @@ public sealed partial class MainViewModel : ObservableObject
         StartingHeight = StartingHeight,
         LastFilePath = CurrentFile == "No script loaded" ? null : CurrentFile,
     };
-    private void Play() { if (Mode == PrompterMode.Scroll) { _scroll.Play(); NotifyScrollState(); } }
+    private void Play() { if (Mode == PrompterMode.Scroll && IsVisible) { _scroll.Play(); NotifyScrollState(); } }
     private void Pause() { _scroll.Pause(); NotifyScrollState(); }
-    private void NotifyScrollState() => ScrollStateChanged?.Invoke(this, EventArgs.Empty);
+    private void NotifyScrollState()
+    {
+        OnPropertyChanged(nameof(IsScrollRunning));
+        OnPropertyChanged(nameof(PlaybackStatus));
+        ScrollStateChanged?.Invoke(this, EventArgs.Empty);
+    }
     private void RefreshPresentation(bool requestLayout = true)
     {
         Prompter.IsScrollMode = Mode == PrompterMode.Scroll;
@@ -253,7 +309,7 @@ public sealed partial class MainViewModel : ObservableObject
             Prompter.ProgressText = string.Empty;
             return;
         }
-        if (!_document.Elements.Any(element => element.Kind != PrompterElementKind.Separator && IsVisibleElement(element)))
+        if (!_document.Elements.Any(IsReadableElement))
         {
             Prompter.Content = string.Empty;
             Prompter.RenderElements = [];
@@ -264,6 +320,7 @@ public sealed partial class MainViewModel : ObservableObject
             NotifyScrollState();
             return;
         }
+        if (Status == "No visible content.") Status = "Script loaded.";
         if (Mode == PrompterMode.Blocks)
         {
             if (_pages.Count > 0)
@@ -286,7 +343,7 @@ public sealed partial class MainViewModel : ObservableObject
                 Prompter.ProgressText = $"Block {_blockIndex + 1} / {_document.Blocks.Count}";
                 Progress = (double)(_blockIndex + 1) / _document.Blocks.Count;
             }
-            if (requestLayout) PresentationNeedsLayout?.Invoke(this, EventArgs.Empty);
+            if (requestLayout && _pages.Count == 0) PresentationNeedsLayout?.Invoke(this, EventArgs.Empty);
         }
         else
         {
@@ -306,5 +363,10 @@ public sealed partial class MainViewModel : ObservableObject
         Progress = 0;
     }
     private bool IsVisibleElement(PrompterElement element) => ShowTitles || element.Kind != PrompterElementKind.Title;
+    private bool IsReadableElement(PrompterElement element) =>
+        element.Kind != PrompterElementKind.Separator && IsVisibleElement(element) && !string.IsNullOrWhiteSpace(element.Text);
+    private static bool PageContainsSourceOffset(PrompterPage page, int sourceOffset) =>
+        page.Elements.Any(element => element.SourceOffset <= sourceOffset
+            && sourceOffset <= element.SourceOffset + Math.Max(0, element.Text.Length - 1));
     private static string DisplayText(PrompterElement element) => element.Text;
 }

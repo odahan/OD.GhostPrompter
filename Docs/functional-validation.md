@@ -41,4 +41,11 @@ Record the GhostPrompter version, Windows build, display DPI, monitor layout, ke
 4. Attempt unsupported, missing, corrupt, locked, and over-limit files. The previous document and position must remain available.
 5. Load a representative large script, cancel an in-progress import, then load another source. Only the newest successful request may become active.
 
+## Quick text editing
+
+1. Confirm **Edit text…** is disabled before a document is loaded, then load TXT, Markdown, and DOCX sources and verify the editor contains their current plain text and GhostPrompter markers.
+2. Correct a few words, choose **Save as…**, and confirm the dialog only offers TXT, writes readable UTF-8 text, loads the saved copy as the current source, and restarts at the beginning.
+3. Edit again and choose **Cancel** or close the editor. Confirm the current source and displayed prompter text remain unchanged.
+4. While the editor has focus, type combinations assigned to global shortcuts and confirm they enter text without controlling the prompter. Confirm the shortcuts work again after closing the editor.
+
 Do not mark the release as capture-compatible unless the real Camtasia and OBS recordings have been viewed and recorded in the separate capture validation file.

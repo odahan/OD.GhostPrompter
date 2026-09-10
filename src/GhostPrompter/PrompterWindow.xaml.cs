@@ -15,13 +15,14 @@ namespace GhostPrompter;
 /// <summary>Displays the presenter-only transparent overlay.</summary>
 public partial class PrompterWindow : Window
 {
-    private const double ProgressIndicatorHeight = 3;
     private PrompterViewModel? _viewModel;
     public bool IsInteractionLocked { get; set; }
     public event EventHandler? ReflowRequested;
-    public double ContentGridWidth => ContentGrid.ActualWidth;
-    /// <summary>Gets the usable text height, excluding the optional progress indicator.</summary>
-    public double ContentGridHeight => Math.Max(0, ContentGrid.ActualHeight - (_viewModel?.ShowProgress == true ? ProgressIndicatorHeight : 0));
+    public double ContentGridWidth => ContentText.ActualWidth;
+    /// <summary>Gets the height reserved for readable text.</summary>
+    public double ContentGridHeight => ContentText.ActualHeight;
+    /// <summary>Gets the current scroll extent calculated by WPF.</summary>
+    public double ScrollableHeight => Math.Max(0, ContentText.ExtentHeight - ContentText.ViewportHeight);
 
     public PrompterWindow()
     {
@@ -53,12 +54,19 @@ public partial class PrompterWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(PrompterViewModel.Content) or nameof(PrompterViewModel.RenderElements)) BuildDocument();
-        if (e.PropertyName is nameof(PrompterViewModel.Content) or nameof(PrompterViewModel.RenderElements) or nameof(PrompterViewModel.FontSize) or nameof(PrompterViewModel.StartingHeight) or nameof(PrompterViewModel.ScrollOffset)) QueueVisualUpdate();
+        if (e.PropertyName is nameof(PrompterViewModel.RenderElements)
+            or nameof(PrompterViewModel.FontSize) or nameof(PrompterViewModel.StartingHeight)
+            or nameof(PrompterViewModel.IsScrollMode) or nameof(PrompterViewModel.ShowProgress))
+        {
+            BuildDocument();
+            QueueVisualUpdate();
+        }
+        if (e.PropertyName == nameof(PrompterViewModel.ScrollOffset)) QueueVisualUpdate();
     }
 
     private void OnContentSizeChanged(object sender, SizeChangedEventArgs e)
     {
+        BuildDocument();
         QueueVisualUpdate();
         ReflowRequested?.Invoke(this, EventArgs.Empty);
     }
@@ -66,8 +74,7 @@ public partial class PrompterWindow : Window
     private void UpdateVisualLayout()
     {
         if (_viewModel is null || ContentGridHeight <= 0) return;
-        var anchor = GetScrollAnchor();
-        ContentTransform.Y = anchor - _viewModel.ScrollOffset;
+        ContentText.ScrollToVerticalOffset(_viewModel.IsScrollMode ? _viewModel.ScrollOffset : 0);
     }
 
     private double GetScrollAnchor()
@@ -81,7 +88,15 @@ public partial class PrompterWindow : Window
     private void BuildDocument()
     {
         if (_viewModel is null) return;
-        var document = new FlowDocument { PagePadding = new Thickness(0), FontFamily = new FontFamily("Segoe UI"), FontSize = _viewModel.FontSize, Foreground = Brushes.White };
+        var topPadding = _viewModel.IsScrollMode ? GetScrollAnchor() : 0;
+        var document = new FlowDocument
+        {
+            PagePadding = new Thickness(0, topPadding, 0, 0),
+            FontFamily = new FontFamily("Segoe UI"),
+            FontSize = _viewModel.FontSize,
+            Foreground = Brushes.White,
+            ColumnWidth = double.PositiveInfinity,
+        };
         var paragraph = new Paragraph { Margin = new Thickness(0), Padding = new Thickness(0) };
         var text = new StringBuilder();
         PrompterElementKind? activeKind = null;
@@ -111,26 +126,30 @@ public partial class PrompterWindow : Window
         FlushRun();
         document.Blocks.Add(paragraph);
         ContentText.Document = document;
+        ContentText.UpdateLayout();
+        if (_viewModel.IsScrollMode && document.ContentEnd.GetInsertionPosition(LogicalDirection.Backward) is { } end)
+        {
+            var lastLineHeight = Math.Max(1, end.GetCharacterRect(LogicalDirection.Backward).Height);
+            document.PagePadding = new Thickness(0, topPadding, 0, Math.Max(0, ContentGridHeight - topPadding - lastLineHeight));
+            ContentText.UpdateLayout();
+        }
     }
 
     /// <summary>Measures parsed elements with the same WPF text engine used by the overlay.</summary>
     public double MeasureElements(IReadOnlyList<PrompterElement> elements, double width)
     {
         if (_viewModel is null || width <= 0) return double.PositiveInfinity;
-        var text = string.Join(Environment.NewLine, elements.Select(x => x.Kind == PrompterElementKind.Comment ? $"// {x.Text}" : x.Text));
+        var text = string.Join(Environment.NewLine, elements.Select(x => x.Text));
         var dpi = VisualTreeHelper.GetDpi(this);
         var formatted = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
             new Typeface("Segoe UI"), _viewModel.FontSize, Brushes.White, dpi.PixelsPerDip) { MaxTextWidth = width };
-        return formatted.Height;
-    }
-
-    /// <summary>Measures the current visible document using the overlay's WPF typeface and width.</summary>
-    public double MeasureContentHeight(double width)
-    {
-        if (_viewModel is null || width <= 0) return 0;
-        var dpi = VisualTreeHelper.GetDpi(this);
-        var formatted = new FormattedText(_viewModel.Content, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
-            new Typeface("Segoe UI"), _viewModel.FontSize, Brushes.White, dpi.PixelsPerDip) { MaxTextWidth = width };
+        var offset = 0;
+        foreach (var element in elements)
+        {
+            if (element.Kind == PrompterElementKind.Title) formatted.SetFontWeight(FontWeights.Bold, offset, element.Text.Length);
+            if (element.Kind == PrompterElementKind.Comment) formatted.SetFontStyle(FontStyles.Italic, offset, element.Text.Length);
+            offset += element.Text.Length + 1;
+        }
         return formatted.Height;
     }
 

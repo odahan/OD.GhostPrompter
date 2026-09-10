@@ -15,6 +15,7 @@ public sealed class SettingsService
     };
     private readonly string _directory;
     private readonly LoggingService? _logging;
+    private readonly SemaphoreSlim _saveGate = new(1, 1);
     public SettingsService(string? directory = null, LoggingService? logging = null)
     {
         _directory = directory ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GhostPrompter");
@@ -45,10 +46,18 @@ public sealed class SettingsService
 
     public async Task SaveAsync(AppSettings settings)
     {
-        Directory.CreateDirectory(_directory);
-        var temporary = FilePath + ".tmp";
-        await using (var stream = File.Create(temporary)) await JsonSerializer.SerializeAsync(stream, Validate(settings), SerializerOptions);
-        File.Move(temporary, FilePath, true);
+        await _saveGate.WaitAsync();
+        try
+        {
+            Directory.CreateDirectory(_directory);
+            var temporary = FilePath + ".tmp";
+            await using (var stream = File.Create(temporary)) await JsonSerializer.SerializeAsync(stream, Validate(settings), SerializerOptions);
+            File.Move(temporary, FilePath, true);
+        }
+        finally
+        {
+            _saveGate.Release();
+        }
     }
 
     private static AppSettings Validate(AppSettings value)
@@ -59,9 +68,11 @@ public sealed class SettingsService
         value.Width = double.IsFinite(value.Width) ? Math.Clamp(value.Width, 200, 4000) : 700;
         value.Height = double.IsFinite(value.Height) ? Math.Clamp(value.Height, 80, 3000) : 250;
         value.BackgroundOpacity = Math.Clamp(value.BackgroundOpacity, 0, 100); value.TextOpacity = Math.Clamp(value.TextOpacity, 20, 100);
-        value.FontSize = Math.Clamp(value.FontSize, 16, 72); value.ScrollSpeed = Math.Clamp(value.ScrollSpeed, 10, 300);
+        value.FontSize = Math.Clamp(value.FontSize, 16, 72);
+        value.ScrollSpeed = Math.Clamp(value.ScrollSpeed, ScrollController.MinimumSpeed, ScrollController.MaximumSpeed);
         value.StartingHeight = Math.Clamp(value.StartingHeight, 10, 80);
         if (!Enum.IsDefined(value.Mode)) value.Mode = PrompterMode.Blocks;
+        value.Hotkeys = value.Hotkeys?.Where(setting => setting is not null).ToList() ?? [];
         return value;
     }
 }
@@ -89,8 +100,16 @@ public sealed class LoggingService : IDisposable
         lock (_gate)
         {
             if (_writer is null) return;
-            _writer.WriteLine($"{DateTimeOffset.Now:O} [{level}] {message}{(exception is null ? string.Empty : Environment.NewLine + exception)}");
-            if (level is "ERROR" or "FATAL") _writer.Flush();
+            try
+            {
+                _writer.WriteLine($"{DateTimeOffset.Now:O} [{level}] {message}{(exception is null ? string.Empty : Environment.NewLine + exception)}");
+                if (level is "ERROR" or "FATAL") _writer.Flush();
+            }
+            catch
+            {
+                _writer.Dispose();
+                _writer = null;
+            }
         }
     }
     public void Dispose() { lock (_gate) { _writer?.Dispose(); _writer = null; } }

@@ -52,4 +52,20 @@ public sealed class ScriptParserServiceTests
         Assert.Equal("vérifier", document.Blocks.Single().Elements[2].Text);
         Assert.DoesNotContain('\r', document.SourceText);
     }
+
+    [Fact]
+    public void Parse_WhitespaceBetweenBracketsRemainsLiteralText()
+    {
+        var document = _parser.Parse("[ ]");
+
+        Assert.Equal(PrompterElementKind.Text, document.Blocks.Single().Elements.Single().Kind);
+    }
+
+    [Fact]
+    public void LeadingTitle_OnlyReturnsATitleAtTheBeginningOfTheBlock()
+    {
+        var document = _parser.Parse("Body\n[Later heading]");
+
+        Assert.Null(document.Blocks.Single().LeadingTitle);
+    }
 }

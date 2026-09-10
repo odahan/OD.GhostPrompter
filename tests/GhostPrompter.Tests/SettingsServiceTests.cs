@@ -34,7 +34,7 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.Equal(16, loaded.FontSize);
         Assert.Equal(20, loaded.TextOpacity);
         Assert.Equal(80, loaded.StartingHeight);
-        Assert.Equal(10, loaded.ScrollSpeed);
+        Assert.Equal(2, loaded.ScrollSpeed);
     }
 
     [Fact]

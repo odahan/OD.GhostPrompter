@@ -14,8 +14,15 @@ public sealed class PaginationService
         var index = 0;
         while (index < layoutElements.Count)
         {
-            var end = index;
-            while (end < layoutElements.Count && measure(layoutElements.Skip(index).Take(end - index + 1).ToArray()) <= availableHeight) end++;
+            var low = index;
+            var high = layoutElements.Count;
+            while (low < high)
+            {
+                var candidateEnd = low + (high - low + 1) / 2;
+                if (measure(layoutElements.Skip(index).Take(candidateEnd - index).ToArray()) <= availableHeight) low = candidateEnd;
+                else high = candidateEnd - 1;
+            }
+            var end = low;
             if (end == index) end++; // A single over-height element must still remain reachable.
             var pageElements = layoutElements.Skip(index).Take(end - index).ToArray();
             var repeatsLeadingTitle = false;
@@ -28,8 +35,9 @@ public sealed class PaginationService
                     repeatsLeadingTitle = true;
                 }
             }
+            var firstContent = repeatsLeadingTitle ? pageElements.Skip(1).FirstOrDefault() : pageElements.FirstOrDefault();
             pages.Add(new PrompterPage(block.Index, pages.Count, index, end - 1,
-                new TextPosition(index, 0), repeatsLeadingTitle, pageElements));
+                new TextPosition(firstContent?.SourceOffset ?? 0, 0), repeatsLeadingTitle, pageElements));
             index = end;
         }
         return pages;
@@ -63,11 +71,11 @@ public sealed class PaginationService
         {
             var remainingLength = element.Text.Length - offset;
             var length = FindLargestFittingLength(element, offset, remainingLength, availableHeight, measure);
-            if (length == 0) length = Math.Min(remainingLength, 1);
+            if (length == 0) length = NextTextElementLength(element.Text, offset);
             var preferredBoundary = FindPreferredBoundary(element.Text, offset, length);
             if (preferredBoundary > 0) length = preferredBoundary;
             length = AvoidSplittingSurrogatePair(element.Text, offset, length);
-            if (length <= 0) length = Math.Min(remainingLength, 1);
+            if (length <= 0) length = NextTextElementLength(element.Text, offset);
             yield return new PrompterElement(element.Kind, element.Text.Substring(offset, length), element.SourceOffset + offset);
             offset += length;
         }
@@ -101,4 +109,7 @@ public sealed class PaginationService
         if (offset + length < text.Length && length > 0 && char.IsHighSurrogate(text[offset + length - 1]) && char.IsLowSurrogate(text[offset + length])) return length - 1;
         return length;
     }
+
+    private static int NextTextElementLength(string text, int offset) =>
+        offset + 1 < text.Length && char.IsHighSurrogate(text[offset]) && char.IsLowSurrogate(text[offset + 1]) ? 2 : 1;
 }

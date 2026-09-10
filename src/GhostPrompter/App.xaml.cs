@@ -4,6 +4,8 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using GhostPrompter.Services;
 using GhostPrompter.ViewModels;
+using GhostPrompter.Native;
+using System.Windows.Interop;
 
 namespace GhostPrompter;
 
@@ -23,6 +25,7 @@ public partial class App : Application
     private Models.CaptureExclusionResult _prompterCapture = Models.CaptureExclusionResult.NotInitialized;
     private bool _isRenderingScroll;
     private bool _settingsInitialized;
+    private DispatcherOperation? _reflowOperation;
 
     public App() => _settings = new SettingsService(logging: _logging);
 
@@ -51,9 +54,10 @@ public partial class App : Application
         _viewModel.PresentationChanged += (_, _) => ApplyWindowState();
         _viewModel.ScrollStateChanged += (_, _) => UpdateScrollRendering();
         _viewModel.ResetWindowPositionRequested += (_, _) => ResetPrompterWindowPosition();
-        _viewModel.RestoreDefaultShortcutsRequested += (_, _) => RestoreDefaultShortcuts();
-        _viewModel.PresentationNeedsLayout += (_, _) => _prompterWindow.Dispatcher.BeginInvoke(() => ReflowBlocks());
-        _prompterWindow.ReflowRequested += (_, _) => ReflowBlocks();
+        _viewModel.ShortcutSettingsRequested += (_, _) => OpenShortcutSettings(main);
+        _viewModel.TextEditorRequested += async (_, _) => await OpenTextEditorAsync(main);
+        _viewModel.PresentationNeedsLayout += (_, _) => QueueReflow();
+        _prompterWindow.ReflowRequested += (_, _) => QueueReflow();
         _viewModel.PropertyChanged += (_, _) => ScheduleSettingsSave();
         _settingsSaveTimer.Tick += async (_, _) =>
         {
@@ -66,7 +70,7 @@ public partial class App : Application
             UpdateCaptureStatus();
             _hotkeys = new GlobalHotkeyService(main, _logging); _hotkeys.Register(null);
             _hotkeys.Triggered += (_, action) => _viewModel.HandleHotkey(action);
-            _viewModel.SetHotkeyStatus(string.Join("; ", _hotkeys.RegistrationStatus.Select(x => $"{x.Key}: {x.Value}")));
+            UpdateHotkeyStatus();
         };
         _prompterWindow.SourceInitialized += (_, _) =>
         {
@@ -84,7 +88,8 @@ public partial class App : Application
     {
         if (_viewModel is null || _prompterWindow is null) return;
         if (_viewModel.IsVisible) _prompterWindow.Show(); else _prompterWindow.Hide();
-        new WindowStyleService().ApplyPresentationStyles(_prompterWindow, _viewModel.IsPresentation && _viewModel.ClickThroughPreferred);
+        var stylesApplied = new WindowStyleService(_logging).ApplyPresentationStyles(_prompterWindow, _viewModel.IsPresentation && _viewModel.ClickThroughPreferred);
+        _viewModel.SetWindowStatus(stylesApplied ? "Window interaction styles active" : "Window interaction styles could not be applied");
         _prompterWindow.ResizeMode = _viewModel.IsPresentation ? ResizeMode.NoResize : ResizeMode.CanResizeWithGrip;
         _prompterWindow.IsInteractionLocked = _viewModel.IsPresentation;
     }
@@ -97,15 +102,25 @@ public partial class App : Application
         if (width <= 0 || height <= 0) return;
         if (_viewModel.Mode == Models.PrompterMode.Scroll)
         {
-            _viewModel.ConfigureScrollLayout(_prompterWindow.MeasureContentHeight(width), height);
+            _prompterWindow.UpdateLayout();
+            _viewModel.ConfigureScrollLayout(_prompterWindow.ScrollableHeight);
             return;
         }
         _viewModel.ReflowBlocks(height, elements => _prompterWindow.MeasureElements(elements, width));
     }
 
+    private void QueueReflow()
+    {
+        if (_prompterWindow is null) return;
+        if (_reflowOperation?.Status == DispatcherOperationStatus.Pending) _reflowOperation.Abort();
+        _reflowOperation = _prompterWindow.Dispatcher.BeginInvoke(ReflowBlocks, DispatcherPriority.Render);
+    }
+
     private void ResetPrompterWindowPosition()
     {
         if (_prompterWindow is null) return;
+        _prompterWindow.Width = Math.Clamp(_prompterWindow.Width, _prompterWindow.MinWidth, SystemParameters.WorkArea.Width);
+        _prompterWindow.Height = Math.Clamp(_prompterWindow.Height, _prompterWindow.MinHeight, SystemParameters.WorkArea.Height);
         _prompterWindow.Left = Math.Max(0, (SystemParameters.PrimaryScreenWidth - _prompterWindow.Width) / 2);
         _prompterWindow.Top = Math.Max(0, (SystemParameters.PrimaryScreenHeight - _prompterWindow.Height) / 2);
     }
@@ -113,21 +128,69 @@ public partial class App : Application
     private bool IsPrompterWindowReachable()
     {
         if (_prompterWindow is null) return false;
-        const double minimumVisibleArea = 50;
-        var right = _prompterWindow.Left + _prompterWindow.Width;
-        var bottom = _prompterWindow.Top + _prompterWindow.Height;
-        return right >= SystemParameters.VirtualScreenLeft + minimumVisibleArea
-            && bottom >= SystemParameters.VirtualScreenTop + minimumVisibleArea
-            && _prompterWindow.Left <= SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth - minimumVisibleArea
-            && _prompterWindow.Top <= SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight - minimumVisibleArea;
+        var handle = new WindowInteropHelper(_prompterWindow).Handle;
+        if (handle == nint.Zero || !NativeMethods.GetWindowRect(handle, out var windowRectangle)) return false;
+        const int minimumVisibleArea = 50;
+        var reachable = false;
+        NativeMethods.MonitorEnumProc callback = (nint monitor, nint deviceContext, ref NativeMethods.Rect monitorRectangle, nint data) =>
+        {
+            var intersectionWidth = Math.Min(windowRectangle.Right, monitorRectangle.Right) - Math.Max(windowRectangle.Left, monitorRectangle.Left);
+            var intersectionHeight = Math.Min(windowRectangle.Bottom, monitorRectangle.Bottom) - Math.Max(windowRectangle.Top, monitorRectangle.Top);
+            reachable = intersectionWidth >= minimumVisibleArea && intersectionHeight >= minimumVisibleArea;
+            return !reachable;
+        };
+        return NativeMethods.EnumDisplayMonitors(nint.Zero, nint.Zero, callback, nint.Zero) && reachable;
     }
 
-    private void RestoreDefaultShortcuts()
+    private void OpenShortcutSettings(MainWindow owner)
     {
-        if (_viewModel is null || _hotkeys is null) return;
-        _hotkeys.Register(null);
-        _viewModel.SetHotkeyStatus(string.Join("; ", _hotkeys.RegistrationStatus.Select(x => $"{x.Key}: {x.Value}")));
-        ScheduleSettingsSave();
+        if (_hotkeys is null) return;
+        var originalSettings = _hotkeys.ActiveSettings.ToArray();
+        _hotkeys.Suspend();
+        var window = new ShortcutSettingsWindow(originalSettings) { Owner = owner };
+        window.SourceInitialized += (_, _) => new CaptureExclusionService(_logging).Apply(window);
+        var saved = false;
+        try
+        {
+            saved = window.ShowDialog() == true;
+        }
+        finally
+        {
+            _hotkeys.Register(saved ? window.Result : originalSettings);
+            UpdateHotkeyStatus();
+        }
+        if (saved) ScheduleSettingsSave();
+    }
+
+    private async Task OpenTextEditorAsync(MainWindow owner)
+    {
+        if (_viewModel is null || !_viewModel.CanEditText) return;
+        var activeHotkeys = _hotkeys?.ActiveSettings.ToArray();
+        _hotkeys?.Suspend();
+        var window = new TextEditorWindow(_viewModel.EditableText, _viewModel.CurrentFile) { Owner = owner };
+        window.SourceInitialized += (_, _) => new CaptureExclusionService(_logging).Apply(window);
+        try
+        {
+            if (window.ShowDialog() == true && window.SavedPath is { } savedPath)
+                await _viewModel.LoadPathAsync(savedPath);
+        }
+        finally
+        {
+            if (activeHotkeys is not null)
+            {
+                _hotkeys?.Register(activeHotkeys);
+                UpdateHotkeyStatus();
+            }
+        }
+    }
+
+    private void UpdateHotkeyStatus()
+    {
+        if (_hotkeys is null || _viewModel is null) return;
+        var failures = _hotkeys.RegistrationStatus.Where(status => status.Value != "Registered").ToArray();
+        _viewModel.SetHotkeyStatus(failures.Length == 0
+            ? $"All {_hotkeys.RegistrationStatus.Count} keyboard shortcuts are active."
+            : $"Unavailable shortcuts: {string.Join("; ", failures.Select(status => $"{status.Key}: {status.Value}"))}");
     }
 
     private void UpdateCaptureStatus()
@@ -160,12 +223,12 @@ public partial class App : Application
         if (_viewModel is null || _prompterWindow is null) return;
         var settings = await _settings.LoadAsync();
         _hotkeys?.Register(settings.Hotkeys);
-        if (_hotkeys is not null) _viewModel.SetHotkeyStatus(string.Join("; ", _hotkeys.RegistrationStatus.Select(x => $"{x.Key}: {x.Value}")));
+        UpdateHotkeyStatus();
         _viewModel.ApplySettings(settings);
         if (double.IsFinite(settings.Left)) _prompterWindow.Left = settings.Left;
         if (double.IsFinite(settings.Top)) _prompterWindow.Top = settings.Top;
-        _prompterWindow.Width = Math.Min(settings.Width, SystemParameters.WorkArea.Width);
-        _prompterWindow.Height = Math.Min(settings.Height, SystemParameters.WorkArea.Height);
+        _prompterWindow.Width = Math.Clamp(settings.Width, _prompterWindow.MinWidth, SystemParameters.WorkArea.Width);
+        _prompterWindow.Height = Math.Clamp(settings.Height, _prompterWindow.MinHeight, SystemParameters.WorkArea.Height);
         if (!IsPrompterWindowReachable()) ResetPrompterWindowPosition();
         ApplyWindowState();
         _settingsInitialized = true;
@@ -201,7 +264,7 @@ public partial class App : Application
     {
         if (_isRenderingScroll) CompositionTarget.Rendering -= OnRendering;
         _settingsSaveTimer.Stop();
-        if (_viewModel is not null && _prompterWindow is not null)
+        if (_settingsInitialized && _viewModel is not null && _prompterWindow is not null)
         {
             var snapshot = _viewModel.CreateSettings(_prompterWindow.Left, _prompterWindow.Top, _prompterWindow.Width, _prompterWindow.Height);
             snapshot.Hotkeys = _hotkeys?.ActiveSettings.ToList() ?? [];
