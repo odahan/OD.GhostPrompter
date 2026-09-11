@@ -2,6 +2,12 @@
 
 GhostPrompter is a Windows presenter overlay for recording technical, educational, and musical demonstrations. The overlay remains topmost while the demonstrated application keeps focus. Its Windows capture-exclusion request was validated with real Camtasia and OBS recordings on the target workstation; exact software versions and capture methods must be recorded in [the validation log](Docs/prototype-capture-validation.md) for each release candidate.
 
+## DonationWare
+
+GhostPrompter is DonationWare: it is free to use for personal and internal professional work. If it helps your work, please consider supporting its development on [Buy Me a Coffee](https://buymeacoffee.com/knhsynths).
+
+Read the [English DonationWare License](LICENSE.en.md) or the [licence DonationWare française](LICENSE.fr.md).
+
 ## Run
 
 Run `GhostPrompter.exe`. The application opens in Configuration mode, paused, with a separate overlay window. Load a TXT, Markdown, or DOCX script. Use **Edit text…** for quick corrections; **Save as…** writes a new UTF-8 `.txt` file and immediately loads that copy into the prompter. The imported source file is never overwritten automatically.
