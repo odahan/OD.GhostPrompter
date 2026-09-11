@@ -165,6 +165,29 @@ public sealed class MainViewModelTests
     }
 
     [Fact]
+    public async Task ScrollBackOnePage_MovesByTheViewportWithoutChangingPlaybackState()
+    {
+        var parser = new ScriptParserService();
+        var prompter = new PrompterViewModel();
+        var viewModel = new MainViewModel(new ImmediateImporter(parser.Parse("Scrolling content")), parser, prompter) { Mode = PrompterMode.Scroll };
+        await viewModel.LoadPathAsync("scroll.txt");
+        viewModel.ConfigureScrollLayout(maximumOffset: 1000, viewportHeight: 200);
+        viewModel.TogglePlayPauseCommand.Execute(null);
+        viewModel.AdvanceScroll(TimeSpan.FromSeconds(10));
+
+        viewModel.HandleHotkey("ScrollBackOnePage");
+
+        Assert.Equal(300, prompter.ScrollOffset);
+        Assert.True(viewModel.IsScrollRunning);
+
+        viewModel.TogglePlayPauseCommand.Execute(null);
+        viewModel.HandleHotkey("ScrollBackOnePage");
+
+        Assert.Equal(100, prompter.ScrollOffset);
+        Assert.False(viewModel.IsScrollRunning);
+    }
+
+    [Fact]
     public async Task BlocksReflow_PreservesTheCurrentSourcePassage()
     {
         var parser = new ScriptParserService();

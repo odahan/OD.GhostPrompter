@@ -34,6 +34,7 @@ Default global shortcuts:
 | Shortcut | Blocks | Scroll |
 | --- | --- | --- |
 | Ctrl+Alt+Up / Down | Next / Previous | Faster / Slower |
+| Ctrl+Alt+Left Arrow | — | Back one visible page, while preserving Play / Pause |
 | Ctrl+Alt+P | — | Play / Pause |
 | Ctrl+Alt+Space | Show / Hide | Show / Hide |
 | Ctrl+Alt+L | Configuration / Presentation | Configuration / Presentation |

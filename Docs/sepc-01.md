@@ -686,7 +686,7 @@ Introduire plus tôt les préoccupations transverses nécessaires au prototype. 
 
 # 27. Évolutions et définition finale
 
-Exposer les actions indépendamment du clavier : NextPage, PreviousPage, IncreaseSpeed, DecreaseSpeed, TogglePlayPause, Restart, ToggleVisibility, TogglePresentation et ToggleClickThrough.
+Exposer les actions indépendamment du clavier : NextPage, PreviousPage, ScrollBackOnePage, IncreaseSpeed, DecreaseSpeed, TogglePlayPause, Restart, ToggleVisibility, TogglePresentation et ToggleClickThrough. En Scroll, Ctrl+Alt+Left Arrow revient d'une hauteur visible sans changer l'état lecture/pause.
 
 Une future version pourra utiliser PowerPoint, pédale, Stream Deck ou MIDI sans dupliquer ces actions. Ne pas implémenter maintenant SlideNumber, @slide ou protocole externe inutilisé.
 

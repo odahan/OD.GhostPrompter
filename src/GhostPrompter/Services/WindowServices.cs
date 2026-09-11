@@ -58,7 +58,7 @@ public sealed class GlobalHotkeyService : IDisposable
 {
     public const uint ModAlt = 0x0001, ModControl = 0x0002, ModNoRepeat = 0x4000;
     private static readonly HashSet<string> SupportedActions =
-    ["NextPage", "PreviousPage", "TogglePlayPause", "ToggleVisibility", "TogglePresentation", "ToggleClickThrough", "IncreaseText", "DecreaseText", "Restart"];
+    ["NextPage", "PreviousPage", "ScrollBackOnePage", "TogglePlayPause", "ToggleVisibility", "TogglePresentation", "ToggleClickThrough", "IncreaseText", "DecreaseText", "Restart"];
     private readonly Dictionary<int, string> _registered = [];
     private readonly List<HotkeySettings> _activeSettings = [];
     private readonly nint _handle;
@@ -78,7 +78,7 @@ public sealed class GlobalHotkeyService : IDisposable
 
     public static IReadOnlyList<HotkeySettings> DefaultSettings { get; } =
     [
-        new("NextPage", ModControl | ModAlt, 0x26), new("PreviousPage", ModControl | ModAlt, 0x28), new("TogglePlayPause", ModControl | ModAlt, 0x50),
+        new("NextPage", ModControl | ModAlt, 0x26), new("PreviousPage", ModControl | ModAlt, 0x28), new("ScrollBackOnePage", ModControl | ModAlt, 0x25), new("TogglePlayPause", ModControl | ModAlt, 0x50),
         new("ToggleVisibility", ModControl | ModAlt, 0x20), new("TogglePresentation", ModControl | ModAlt, 0x4C), new("ToggleClickThrough", ModControl | ModAlt, 0x54),
         new("IncreaseText", ModControl | ModAlt, 0x6B), new("DecreaseText", ModControl | ModAlt, 0x6D), new("Restart", ModControl | ModAlt, 0x24),
         new("IncreaseText", ModControl | ModAlt, 0xBB), new("DecreaseText", ModControl | ModAlt, 0xBD),
@@ -89,7 +89,7 @@ public sealed class GlobalHotkeyService : IDisposable
     {
         Suspend();
         _status.Clear(); _activeSettings.Clear();
-        var selected = settings?.ToArray() is { Length: > 0 } configured ? configured : DefaultSettings;
+        var selected = CompleteWithNewDefaults(settings);
         var duplicates = new HashSet<(uint Modifiers, uint Key)>();
         var id = 1;
         foreach (var setting in selected)
@@ -118,6 +118,22 @@ public sealed class GlobalHotkeyService : IDisposable
             _activeSettings.Add(setting);
             Register(id++, setting);
         }
+    }
+
+    private static IReadOnlyList<HotkeySettings> CompleteWithNewDefaults(IEnumerable<HotkeySettings>? settings)
+    {
+        var selected = settings?.ToList() ?? [];
+        if (selected.Count == 0) return DefaultSettings;
+
+        var occurrences = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var setting in DefaultSettings)
+        {
+            var occurrence = occurrences.GetValueOrDefault(setting.Action);
+            occurrences[setting.Action] = occurrence + 1;
+            var configuredCount = selected.Count(candidate => candidate.Action == setting.Action);
+            if (configuredCount <= occurrence) selected.Add(setting);
+        }
+        return selected;
     }
 
     private void Register(int id, HotkeySettings setting)
@@ -157,6 +173,7 @@ public sealed class GlobalHotkeyService : IDisposable
     {
         "NextPage" => "Next page / Faster",
         "PreviousPage" => "Previous page / Slower",
+        "ScrollBackOnePage" => "Back one page (Scroll)",
         "TogglePlayPause" => "Play or pause",
         "ToggleVisibility" => "Show or hide prompter",
         "TogglePresentation" => "Configuration or Presentation",

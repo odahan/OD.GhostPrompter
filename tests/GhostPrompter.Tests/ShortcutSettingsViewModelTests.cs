@@ -14,6 +14,7 @@ public sealed class ShortcutSettingsViewModelTests
 
         Assert.Equal(GlobalHotkeyService.DefaultSettings.Count, viewModel.Shortcuts.Count);
         Assert.Contains(viewModel.Shortcuts, shortcut => shortcut.DisplayName == "Play or pause" && shortcut.ShortcutText == "Ctrl + Alt + P");
+        Assert.Contains(viewModel.Shortcuts, shortcut => shortcut.DisplayName == "Back one page (Scroll)" && shortcut.ShortcutText == "Ctrl + Alt + Left Arrow");
         Assert.DoesNotContain(viewModel.Shortcuts, shortcut => shortcut.ShortcutText.Contains("0x", StringComparison.OrdinalIgnoreCase));
     }
 

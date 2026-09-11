@@ -103,7 +103,7 @@ public partial class App : Application
         if (_viewModel.Mode == Models.PrompterMode.Scroll)
         {
             _prompterWindow.UpdateLayout();
-            _viewModel.ConfigureScrollLayout(_prompterWindow.ScrollableHeight);
+            _viewModel.ConfigureScrollLayout(_prompterWindow.ScrollableHeight, _prompterWindow.ContentGridHeight);
             return;
         }
         _viewModel.ReflowBlocks(height, elements => _prompterWindow.MeasureElements(elements, width));

@@ -20,6 +20,7 @@ public sealed partial class MainViewModel : ObservableObject
     private IReadOnlyList<PrompterPage> _pages = [];
     private CancellationTokenSource? _loadCancellation;
     private bool _hasLoadedDocument;
+    private double _scrollPageHeight = 1;
 
     public MainViewModel(IDocumentImportService importService, ScriptParserService parser, PrompterViewModel prompter, LoggingService? logging = null)
     {
@@ -181,7 +182,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (!_scroll.IsRunning) NotifyScrollState();
     }
     /// <summary>Applies the current WPF text measurement to scrolling bounds and progress.</summary>
-    public void ConfigureScrollLayout(double maximumOffset)
+    public void ConfigureScrollLayout(double maximumOffset, double viewportHeight = 0)
     {
         if (Mode != PrompterMode.Scroll) return;
         if (_document.IsEmpty || !_document.Elements.Any(IsReadableElement))
@@ -193,9 +194,20 @@ public sealed partial class MainViewModel : ObservableObject
         }
         var previousProgress = _scroll.Progress;
         var hadLayout = _scroll.HasContent;
+        _scrollPageHeight = Math.Max(1, viewportHeight);
         _scroll.Configure(Math.Max(0, maximumOffset), hasContent: true);
         if (hadLayout) _scroll.SetOffset(_scroll.MaximumOffset * previousProgress);
         Pause();
+        Progress = _scroll.Progress;
+        Prompter.ScrollOffset = _scroll.Offset;
+        Prompter.ProgressText = $"{Progress:P0}";
+    }
+
+    /// <summary>Moves scroll content back by one visible page without changing playback state.</summary>
+    public void ScrollBackOnePage()
+    {
+        if (Mode != PrompterMode.Scroll || !_scroll.HasContent) return;
+        _scroll.SetOffset(_scroll.Offset - _scrollPageHeight);
         Progress = _scroll.Progress;
         Prompter.ScrollOffset = _scroll.Offset;
         Prompter.ProgressText = $"{Progress:P0}";
@@ -238,6 +250,7 @@ public sealed partial class MainViewModel : ObservableObject
             case "NextPage": IncreaseSpeedCommand.Execute(null); break;
             case "PreviousPage" when Mode == PrompterMode.Blocks: PreviousPageCommand.Execute(null); break;
             case "PreviousPage": DecreaseSpeedCommand.Execute(null); break;
+            case "ScrollBackOnePage": ScrollBackOnePage(); break;
             case "TogglePlayPause": TogglePlayPauseCommand.Execute(null); break;
             case "ToggleVisibility": ToggleVisibilityCommand.Execute(null); break;
             case "TogglePresentation": TogglePresentationCommand.Execute(null); break;
